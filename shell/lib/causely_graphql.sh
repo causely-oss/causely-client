@@ -444,3 +444,294 @@ time_offset() {
     return 1
 }
 
+# ============================================================================
+# Snapshot Query Helpers
+# ============================================================================
+
+# Query a snapshot by ID
+# Arguments:
+#   $1 - API URL
+#   $2 - Auth token
+#   $3 - Snapshot ID
+# Returns:
+#   Prints snapshot JSON to stdout
+#   Returns 0 on success, 1 on failure
+get_snapshot() {
+    _api_url="$1"
+    _token="$2"
+    _snapshot_id="$3"
+    
+    if [ -z "$_api_url" ] || [ -z "$_token" ] || [ -z "$_snapshot_id" ]; then
+        print_error "get_snapshot: all arguments required (url, token, snapshot_id)"
+        return 1
+    fi
+    
+    _query='query GetSnapshot($id: String!) {
+      getSnapshot(id: $id) {
+        id
+        name
+        description
+        status
+        createdAt
+        startTime
+        endTime
+        tags {
+          key
+          value
+        }
+      }
+    }'
+    
+    _vars=$(jq -n --arg id "$_snapshot_id" '{id: $id}')
+    
+    _response=$(execute_graphql "$_api_url" "$_token" "$_query" "$_vars")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    
+    extract_graphql_data "$_response" ".data.getSnapshot"
+}
+
+# Get snapshot status
+# Arguments:
+#   $1 - API URL
+#   $2 - Auth token
+#   $3 - Snapshot ID
+# Returns:
+#   Prints status (PENDING, COMPLETE, or FAILED) to stdout
+#   Returns 0 on success, 1 on failure
+get_snapshot_status() {
+    _api_url="$1"
+    _token="$2"
+    _snapshot_id="$3"
+    
+    _snapshot=$(get_snapshot "$_api_url" "$_token" "$_snapshot_id")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    
+    echo "$_snapshot" | jq -r '.status'
+}
+
+# Poll snapshot until it reaches a terminal state (COMPLETE or FAILED)
+# Arguments:
+#   $1 - API URL
+#   $2 - Auth token
+#   $3 - Snapshot ID
+#   $4 - Poll interval in seconds (default: 30)
+#   $5 - Maximum wait time in seconds (default: 2700 = 45 minutes)
+#   $6 - Callback function name (optional) - called with (status, snapshot_json) on each poll
+# Returns:
+#   Prints final snapshot JSON to stdout
+#   Returns 0 if COMPLETE, 1 if FAILED or timeout
+poll_snapshot_status() {
+    _api_url="$1"
+    _token="$2"
+    _snapshot_id="$3"
+    _interval="${4:-30}"
+    _max_wait="${5:-2700}"
+    _callback="${6:-}"
+    
+    if [ -z "$_api_url" ] || [ -z "$_token" ] || [ -z "$_snapshot_id" ]; then
+        print_error "poll_snapshot_status: url, token, and snapshot_id required"
+        return 1
+    fi
+    
+    _start_time=$(date +%s)
+    _elapsed=0
+    
+    while [ $_elapsed -lt $_max_wait ]; do
+        _snapshot=$(get_snapshot "$_api_url" "$_token" "$_snapshot_id")
+        if [ $? -ne 0 ]; then
+            print_error "Failed to query snapshot status"
+            return 1
+        fi
+        
+        _status=$(echo "$_snapshot" | jq -r '.status')
+        
+        # Call callback if provided
+        if [ -n "$_callback" ]; then
+            $_callback "$_status" "$_snapshot" || true
+        fi
+        
+        # Check for terminal states
+        case "$_status" in
+            COMPLETE)
+                print_success "Snapshot completed successfully"
+                echo "$_snapshot"
+                return 0
+                ;;
+            FAILED)
+                print_error "Snapshot failed"
+                echo "$_snapshot" >&2
+                return 1
+                ;;
+            PENDING)
+                _current_time=$(date +%s)
+                _elapsed=$((_current_time - _start_time))
+                _remaining=$((_max_wait - _elapsed))
+                
+                if [ $_remaining -gt 0 ]; then
+                    print_info "Snapshot still pending (${_elapsed}s elapsed, ~${_remaining}s remaining)..."
+                    sleep "$_interval"
+                fi
+                ;;
+            *)
+                print_error "Unknown snapshot status: $_status"
+                return 1
+                ;;
+        esac
+        
+        _current_time=$(date +%s)
+        _elapsed=$((_current_time - _start_time))
+    done
+    
+    print_error "Timeout waiting for snapshot to complete (waited ${_max_wait}s)"
+    return 1
+}
+
+# ============================================================================
+# Snapshot Query Helpers
+# ============================================================================
+
+# Query a snapshot by ID
+# Arguments:
+#   $1 - API URL
+#   $2 - Auth token
+#   $3 - Snapshot ID
+# Returns:
+#   Prints snapshot JSON to stdout
+#   Returns 0 on success, 1 on failure
+get_snapshot() {
+    _api_url="$1"
+    _token="$2"
+    _snapshot_id="$3"
+    
+    if [ -z "$_api_url" ] || [ -z "$_token" ] || [ -z "$_snapshot_id" ]; then
+        print_error "get_snapshot: all arguments required (url, token, snapshot_id)"
+        return 1
+    fi
+    
+    _query='query GetSnapshot($id: String!) {
+      getSnapshot(id: $id) {
+        id
+        name
+        description
+        status
+        createdAt
+        startTime
+        endTime
+        tags {
+          key
+          value
+        }
+      }
+    }'
+    
+    _vars=$(jq -n --arg id "$_snapshot_id" '{id: $id}')
+    
+    _response=$(execute_graphql "$_api_url" "$_token" "$_query" "$_vars")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    
+    extract_graphql_data "$_response" ".data.getSnapshot"
+}
+
+# Get snapshot status
+# Arguments:
+#   $1 - API URL
+#   $2 - Auth token
+#   $3 - Snapshot ID
+# Returns:
+#   Prints status (PENDING, COMPLETE, or FAILED) to stdout
+#   Returns 0 on success, 1 on failure
+get_snapshot_status() {
+    _api_url="$1"
+    _token="$2"
+    _snapshot_id="$3"
+    
+    _snapshot=$(get_snapshot "$_api_url" "$_token" "$_snapshot_id")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    
+    echo "$_snapshot" | jq -r '.status'
+}
+
+# Poll snapshot until it reaches a terminal state (COMPLETE or FAILED)
+# Arguments:
+#   $1 - API URL
+#   $2 - Auth token
+#   $3 - Snapshot ID
+#   $4 - Poll interval in seconds (default: 30)
+#   $5 - Maximum wait time in seconds (default: 2700 = 45 minutes)
+#   $6 - Callback function name (optional) - called with (status, snapshot_json) on each poll
+# Returns:
+#   Prints final snapshot JSON to stdout
+#   Returns 0 if COMPLETE, 1 if FAILED or timeout
+poll_snapshot_status() {
+    _api_url="$1"
+    _token="$2"
+    _snapshot_id="$3"
+    _interval="${4:-30}"
+    _max_wait="${5:-2700}"
+    _callback="${6:-}"
+    
+    if [ -z "$_api_url" ] || [ -z "$_token" ] || [ -z "$_snapshot_id" ]; then
+        print_error "poll_snapshot_status: url, token, and snapshot_id required"
+        return 1
+    fi
+    
+    _start_time=$(date +%s)
+    _elapsed=0
+    
+    while [ $_elapsed -lt $_max_wait ]; do
+        _snapshot=$(get_snapshot "$_api_url" "$_token" "$_snapshot_id")
+        if [ $? -ne 0 ]; then
+            print_error "Failed to query snapshot status"
+            return 1
+        fi
+        
+        _status=$(echo "$_snapshot" | jq -r '.status')
+        
+        # Call callback if provided
+        if [ -n "$_callback" ]; then
+            $_callback "$_status" "$_snapshot" || true
+        fi
+        
+        # Check for terminal states
+        case "$_status" in
+            COMPLETE)
+                print_success "Snapshot completed successfully"
+                echo "$_snapshot"
+                return 0
+                ;;
+            FAILED)
+                print_error "Snapshot failed"
+                echo "$_snapshot" >&2
+                return 1
+                ;;
+            PENDING)
+                _current_time=$(date +%s)
+                _elapsed=$((_current_time - _start_time))
+                _remaining=$((_max_wait - _elapsed))
+                
+                if [ $_remaining -gt 0 ]; then
+                    print_info "Snapshot still pending (${_elapsed}s elapsed, ~${_remaining}s remaining)..."
+                    sleep "$_interval"
+                fi
+                ;;
+            *)
+                print_error "Unknown snapshot status: $_status"
+                return 1
+                ;;
+        esac
+        
+        _current_time=$(date +%s)
+        _elapsed=$((_current_time - _start_time))
+    done
+    
+    print_error "Timeout waiting for snapshot to complete (waited ${_max_wait}s)"
+    return 1
+}

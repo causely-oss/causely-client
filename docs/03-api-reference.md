@@ -1,64 +1,32 @@
-# Snapshots
+# Snapshot API Reference
 
-Causely provides the capability to capture and store the state of your environment for a given timeframe. Users can 
-provide a name, description, and tags to each snapshot to conveniently organize, identify, and retrieve them for later
-use.
-Snapshots can then be compared with one another, providing a way to readily assess the health and stability of the 
-environment given changes to the underlying systems and/or behavior over time. The Causely snapshot comparison aims to 
+Complete GraphQL API documentation for the Causely Snapshot API.
 
+## Table of Contents
 
-Some example use cases:
-
-## Shift Left
-
-Teams which utilize staging and/or test environments for pending release candidates can leverage the Causely snapshot 
-and comparison feature to confidently make informed decisions around their release cycles. For example, by creating 
-snapshots routinely, teams can compare their current release candidate with the snapshot for the previous release.
-By creating snapshots over the duration of a system load test, you can compare how a pending release-candidate for this
-week may have improved or degraded compared to the previous release candidate. This type of comparison enables teams to 
-make decisions about whether to move ahead with the rollout of the release or to withhold it while necessary changes are 
-made to remediate newly identified problems.
-
-## Release Confidence
-
-One may opt to take a snapshot of their environment for some duration of time prior to a release and another snapshot 
-for some (presumably the equivalent) duration after release. This type of comparison can provide insights about whether 
-the newly released changes are stable or identify signs of regressions which may need to be remediated right away.
-
-
-# Snapshot Comparisons
-
-Users can select 2 previously generated Snapshots and compare them against one another. Additionally, the comparison 
-supports the Causely scoping functionality, allowing the user to focus the comparison to a specified subset of the overall
-environment which is relevant to their concerns - such as a specific cluster, namespace, or team area. 
-
-The comparison results provide the user with the information required to make informed decisions and assessments about 
-the behavior and stability of their environment with respect to underlying changes. The comparison aims to answer the 
-following questions:
-
-- Can I feel confident that the later version is stable, or should it be rejected/revised to remediate serious problems?
-- Are there any new Errors/Malfunctions? Have previous root causes been remediated?
-- Is there increased Latency/Congestion?
-- Am I using more or fewer Resources (e.g. CPU and Memory)?
-
----
-
-# Snapshot API Documentation
+- [Overview](#overview)
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+  - [createSnapshot](#createsnapshot)
+  - [getSnapshot](#getsnapshot)
+  - [getSnapshots](#getsnapshots)
+  - [getSnapshotsPaginated](#getsnapshotspaginated)
+  - [getUserScopes](#getuserscopes)
+  - [compareSnapshots](#comparesnapshots)
+- [Snapshot Processing](#snapshot-processing)
+- [Common Use Cases](#common-use-cases)
+- [Assessment Criteria](#assessment-criteria)
+- [Best Practices](#best-practices)
 
 ## Overview
 
 The Snapshot API provides endpoints for creating snapshots of your system state and comparing snapshots to identify changes in entities, defects, resources, and services.
 
-## Table of Contents
-
-- [Authentication](#authentication)
-- [Endpoints](#endpoints)
-  - [createSnapshot](#createsnapshot)
-  - [compareSnapshots](#comparesnapshots)
-- [Example Scripts](#example-scripts)
-  - [Python](#python-examples)
-  - [Bash](#bash-examples)
-  - [Node.js](#nodejs-examples)
+**Key Concepts:**
+- **Snapshots**: Capture system state over a time window
+- **Comparisons**: Analyze differences between snapshots
+- **Assessment**: Automated ACCEPTED/REJECTED evaluation
+- **Scopes**: Filter comparisons to specific parts of your environment
 
 ## Authentication
 
@@ -68,19 +36,17 @@ All API requests use GraphQL and require authentication using a JWT token. Inclu
 Authorization: Bearer <YOUR_JWT_TOKEN>
 ```
 
-Retrieving your JWT token requires authenticating against frontegg. For the purpose of scripting it is suggested to create
-a dedicated frontegg API Token and using the resulting `client_id` and `client_secret` to retrieve a valid JWT token.
+### Creating Frontegg API Token
 
-### Creating API Token (frontegg)
+1. Login to [Causely Portal](https://portal.causely.app/)
+2. At the top right, open **User Settings** (bubble icon with your initials)
+3. Click **Admin Portal** (opens new tab)
+4. Navigate to **API Tokens** (bottom of left menu)
+5. Click **Generate Token**
+6. Fill in description, set `Role` = "Admin", click **Create**
+7. **Save the Client ID and Client Secret** (shown only once!)
 
-1. Login to [Causely](https://portal.causely.app/)
-2. At the top right of the screen, open User Settings by clicking on the bubble icon (showing your user initials)
-3. Click `Admin Portal` which opens a new tab to your frontegg account dashboard
-4. At bottom of left menu select `API Tokens`
-5. Click button `Generate Token`
-6. Fill in `description` (name), set `Role` = "Admin", etc... finally, click `Create`
-7. Copy and save the `Client ID` and `Client Secret` (this is the only time it will be available to do so!)
-8. Ideally, save those credentials to an appropriate secrets/vault for secure retrieval later
+For detailed authentication setup, see the [Authentication Guide](04-authentication.md).
 
 ## Endpoints
 
@@ -88,14 +54,21 @@ a dedicated frontegg API Token and using the resulting `client_id` and `client_s
 
 Creates a new snapshot of the system state for a specified time range.
 
+**Important:** This mutation returns immediately with `id`, `name`, and `status` fields. Snapshot processing happens asynchronously in the background (see [Snapshot Processing](#snapshot-processing)).
+
 #### GraphQL Mutation
 
 ```graphql
-mutation CreateSnapshot($options: SnapshotOptionsInput) {
+mutation CreateSnapshot($options: SnapshotOptionsInput!) {
   createSnapshot(options: $options) {
     id
     name
     description
+    status
+    tags {
+      key
+      value
+    }
     createdAt
     startTime
     endTime
@@ -109,11 +82,11 @@ mutation CreateSnapshot($options: SnapshotOptionsInput) {
 
 | Field         | Type            | Required | Default           | Description                                                               |
 |---------------|-----------------|----------|-------------------|---------------------------------------------------------------------------|
-| `name`        | String          | Yes      | N/A - must be set | Name of the snapshot                                                      |
-| `description` | String          | Yes      | N/A - must be set | Description of the snapshot                                               |
+| `name`        | String          | Yes      | N/A               | Name of the snapshot                                                      |
+| `description` | String          | Yes      | N/A               | Description of the snapshot                                               |
 | `tags`        | [TagEntryInput] | No       | Empty             | Array of key-value tag pairs                                              |
-| `startTime`   | Time            | No       | -2 hours          | Start time of the snapshot period (YYYY-MM-DDTHH:MM:SSZ - RFC3339 format) |
-| `endTime`     | Time            | No       | now               | End time of the snapshot period (defaults to current time)                |
+| `startTime`   | Time            | No       | -2 hours          | Start time (RFC3339: YYYY-MM-DDTHH:MM:SSZ); Max -2 hours from endTime    |
+| `endTime`     | Time            | No       | now               | End time (defaults to current time)                                       |
 
 **TagEntryInput**
 
@@ -124,13 +97,14 @@ mutation CreateSnapshot($options: SnapshotOptionsInput) {
 
 #### Response
 
-Returns a `Snapshot` object:
+Returns a `Snapshot` object with initial status:
 
 ```graphql
 type Snapshot {
   id: String!
   name: String!
   description: String!
+  status: SnapshotStatus!  # PENDING, COMPLETE, or FAILED
   tags: [TagEntry]
   createdAt: Time!
   startTime: Time!
@@ -150,13 +124,34 @@ mutation {
     tags: [
       { key: "environment", value: "production" }
       { key: "version", value: "1.2.3" }
-      { key: "load test", value: "100K Users"}
     ]
   }) {
     id
     name
+    status
+  }
+}
+```
+
+---
+
+### getSnapshot
+
+Query a snapshot by ID to check its status and retrieve details.
+
+#### GraphQL Query
+
+```graphql
+query GetSnapshot($id: String!) {
+  getSnapshot(id: $id) {
+    id
+    name
     description
-    tags { key, value}
+    status
+    tags {
+      key
+      value
+    }
     createdAt
     startTime
     endTime
@@ -164,23 +159,109 @@ mutation {
 }
 ```
 
-#### Example Response
+#### Input Parameters
 
-```json
-{
-  "data": {
-    "createSnapshot": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Production Baseline",
-      "description": "Baseline snapshot before deployment",
-      "tags": [
-        { "key": "environment", "value": "production" },
-        { "key": "version", "value": "1.2.3" },
-        { "key": "load test", "value": "100K Users"}
-      ],
-      "createdAt": "2025-10-20T10:05:00Z",
-      "startTime": "2025-10-20T10:00:00Z",
-      "endTime": "2025-10-20T11:00:00Z"
+| Field | Type   | Required | Description   |
+|-------|--------|----------|---------------|
+| `id`  | String | Yes      | Snapshot ID   |
+
+#### Response
+
+Returns a `Snapshot` object with current status.
+
+**Status Values:**
+- `PENDING`: Snapshot is being processed
+- `COMPLETE`: Snapshot finished successfully
+- `FAILED`: Snapshot processing failed
+
+#### Example Request
+
+```graphql
+query {
+  getSnapshot(id: "550e8400-e29b-41d4-a716-446655440000") {
+    id
+    name
+    status
+    createdAt
+  }
+}
+```
+
+---
+
+### getSnapshots
+
+Retrieve a list of all existing snapshots with optional filtering.
+
+#### GraphQL Query
+
+```graphql
+query GetSnapshots($filter: SnapshotFilterInput) {
+  getSnapshots(filter: $filter) {
+    id
+    name
+    description
+    status
+    createdAt
+    startTime
+    endTime
+  }
+}
+```
+
+#### Input Parameters
+
+**SnapshotFilterInput** (Optional)
+
+| Field       | Type   | Required | Description                                    |
+|-------------|--------|----------|------------------------------------------------|
+| `name`      | String | No       | Filter snapshots by name (exact match)         |
+| `startTime` | Time   | No       | Filter snapshots that start after this time    |
+| `endTime`   | Time   | No       | Filter snapshots that end before this time     |
+| `createdAt` | Time   | No       | Filter snapshots created after this time       |
+
+**Note:** If no filter is provided, returns all snapshots.
+
+---
+
+### getSnapshotsPaginated
+
+Retrieve snapshots with cursor-based pagination support.
+
+#### GraphQL Query
+
+```graphql
+query GetSnapshotsPaginated(
+  $filter: SnapshotFilterInput
+  $first: Int
+  $after: String
+  $last: Int
+  $before: String
+) {
+  getSnapshotsPaginated(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    edges {
+      node {
+        id
+        name
+        description
+        status
+        createdAt
+        startTime
+        endTime
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
     }
   }
 }
@@ -188,9 +269,78 @@ mutation {
 
 ---
 
+### getUserScopes
+
+Retrieve user-defined scopes with pagination support. Scopes are used to filter comparisons to specific parts of your environment.
+
+#### GraphQL Query
+
+```graphql
+query GetUserScopes(
+  $filter: UserScopeFilter
+  $first: Int
+  $after: String
+  $last: Int
+  $before: String
+) {
+  getUserScopes(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    totalCount
+    edges {
+      node {
+        id
+        name
+        audience
+        ownerId
+        lastUpdate
+        scopes {
+          typeName
+          typeValues
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+      totalCount
+    }
+  }
+}
+```
+
+#### Input Parameters
+
+| Field    | Type             | Required | Description                                               |
+|----------|------------------|----------|-----------------------------------------------------------|
+| `filter` | UserScopeFilter  | No       | Filter criteria for user scopes                           |
+| `first`  | Int              | No       | Number of items to return (forward pagination)            |
+| `after`  | String           | No       | Cursor to start from (forward pagination)                 |
+| `last`   | Int              | No       | Number of items to return (backward pagination)           |
+| `before` | String           | No       | Cursor to start from (backward pagination)                 |
+
+**UserScopeFilter**
+
+| Field      | Type    | Required | Description                           |
+|------------|---------|----------|---------------------------------------|
+| `name`     | String  | No       | Filter by scope name (partial match)  |
+| `audience` | String  | No       | Filter by audience type               |
+| `ownerId`  | String  | No       | Filter by owner user ID               |
+
+**Note:** Use either (`first` + `after`) for forward pagination OR (`last` + `before`) for backward pagination, not both.
+
+---
+
 ### compareSnapshots
 
-Compare two snapshots, and optionally provide a Causely scope, to return the comparison findings.
+Compare two or more snapshots, optionally with a scope filter, to return detailed comparison findings.
 
 #### GraphQL Query
 
@@ -475,27 +625,32 @@ query {
 }
 ```
 
-## Example Scripts
+## Snapshot Processing
 
-### Python Examples
+**Important:** The `createSnapshot` mutation returns immediately with `id`, `name`, and `status` fields. Snapshot processing happens asynchronously in the background.
 
-See the example scripts in the `examples/python/` directory:
-- `create_snapshot.py` - Create a new snapshot
-- `compare_snapshots.py` - Compare multiple snapshots
-- `snapshot_workflow.py` - Complete workflow example
+### Processing Behavior
 
-### Bash Examples
+1. **Immediate Response**: Returns with `status: PENDING`
+2. **Background Processing**: Can take anywhere from a few minutes to 45 minutes depending on environment size
+3. **Status Updates**: Use `getSnapshot` query to poll for status changes
+4. **Terminal States**: `COMPLETE` (success) or `FAILED` (error)
 
-See the example scripts in the `examples/bash/` directory:
-- `create_snapshot.sh` - Create a new snapshot using curl
-- `compare_snapshots.sh` - Compare multiple snapshots using curl
+### Polling for Completion
 
-### Node.js Examples
+Use the `getSnapshot` query to check status:
 
-See the example scripts in the `examples/nodejs/` directory:
-- `create_snapshot.js` - Create a new snapshot
-- `compare_snapshots.js` - Compare multiple snapshots
-- `snapshot_workflow.js` - Complete workflow example
+```graphql
+query {
+  getSnapshot(id: "snapshot-id") {
+    id
+    name
+    status  # PENDING, COMPLETE, or FAILED
+  }
+}
+```
+
+For shell scripts, use the `poll_snapshot_status()` helper function (see [Shell Implementation](05-shell-implementation.md#polling-for-completion)).
 
 ## Common Use Cases
 
@@ -507,49 +662,62 @@ Create snapshots before and after deployments to identify:
 - Service performance degradation
 - Entity changes (added/removed services)
 
-```
+**Workflow:**
 1. Create "before" snapshot
 2. Perform deployment
-3. Wait desired length of time (up to 2 hours) then Create "after" snapshot
-4. Compare snapshots
-5. Review assessment (ACCEPTED/REJECTED)
-```
+3. Wait for system stabilization (up to 2 hours)
+4. Create "after" snapshot
+5. Poll both snapshots until `COMPLETE`
+6. Compare snapshots
+7. Review assessment (ACCEPTED/REJECTED)
 
 ### 2. Performance Testing Baseline
 
 Establish performance baselines and compare test runs:
 
-```
 1. Create baseline snapshot during normal operation
 2. Create snapshot during load test
-3. Compare to identify performance impacts
-4. Review resource and service metric changes
-```
+3. Poll until both are `COMPLETE`
+4. Compare to identify performance impacts
+5. Review resource and service metric changes
 
 ### 3. Environment Drift Detection
 
 Compare production and staging environments:
 
-```
 1. Create snapshot in production
 2. Create snapshot in staging
-3. Compare with scope filter for specific services
-4. Identify configuration or behavior differences
-```
+3. Poll until both are `COMPLETE`
+4. Compare with scope filter for specific services
+5. Identify configuration or behavior differences
 
 ## Assessment Criteria
 
 The comparison assessment (ACCEPTED/REJECTED) is based on:
 
-- **New defects**: Significant increase in defects results in REJECTED
-- **Resource changes**: Large increases in CPU/memory utilization may trigger REJECTED
-- **Service degradation**: Increased error rates or latency may result in REJECTED
-- **Entity stability**: Large numbers of removed entities may indicate issues
+**❌ REJECTED** if:
+- Significant new defects detected
+- Large resource utilization increases
+- Service degradation (errors, latency)
+- Many entities removed
 
-## Tips and Best Practices
+**✅ ACCEPTED** if:
+- No significant issues detected
+- Metrics within acceptable ranges
+- System remains stable
+
+## Best Practices
 
 1. **Time Range Selection**: Choose snapshot time ranges that represent steady-state behavior
 2. **Scope Filtering**: Use scopes to focus comparisons on relevant parts of your system
 3. **Tagging**: Use tags to organize snapshots by environment, version, or test type
 4. **Baseline Snapshots**: Create regular baseline snapshots during known-good states
-5. **Automation**: Integrate snapshot creation/comparison into CI/CD pipelines
+5. **Polling**: Always poll for `COMPLETE` status before comparing snapshots
+6. **Automation**: Integrate snapshot creation/comparison into CI/CD pipelines
+
+## Related Documentation
+
+- **[Quick Start](02-quick-start.md)** - Quick start guide
+- **[Shell Implementation](05-shell-implementation.md)** - GraphQL library functions and helpers
+- **[GitHub Actions](06-github-actions.md)** - CI/CD integration examples
+- **[Examples](07-examples-and-use-cases.md)** - Real-world examples

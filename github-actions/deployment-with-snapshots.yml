@@ -1,0 +1,290 @@
+name: Production Deployment with Snapshot Comparison
+
+# Complete deployment workflow with before/after snapshot comparison
+# This demonstrates best practices for production deployments
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Version to deploy'
+        required: true
+      wait_time:
+        description: 'Wait time after deployment (seconds)'
+        required: false
+        default: '120'
+
+jobs:
+  deploy-with-snapshots:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    env:
+      FRONTEGG_CLIENT_ID: ${{ secrets.FRONTEGG_CLIENT_ID }}
+      FRONTEGG_CLIENT_SECRET: ${{ secrets.FRONTEGG_CLIENT_SECRET }}
+    
+    steps:
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # SETUP
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      - name: 📥 Checkout application
+        uses: actions/checkout@v4
+      
+      - name: 📥 Checkout Causely scripts
+        uses: actions/checkout@v4
+        with:
+          repository: Causely/causely
+          sparse-checkout: |
+            docs/examples/bash
+          path: .causely
+      
+      - name: 🔧 Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq bc
+          chmod +x .causely/docs/examples/bash/*.sh
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # PRE-DEPLOYMENT SNAPSHOT
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      - name: 📸 Create baseline snapshot
+        id: baseline
+        run: |
+          echo "::group::Creating baseline snapshot"
+          
+          START_TIME=$(date -u -d "2 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          
+          OUTPUT=$(.causely/docs/examples/bash/create_snapshot_v2.sh \
+            --name "Baseline - ${{ github.event.inputs.environment }} - $TIMESTAMP" \
+            --description "Pre-deployment baseline for ${{ github.event.inputs.version }}" \
+            --start-time "$START_TIME" \
+            --tag "environment=${{ github.event.inputs.environment }}" \
+            --tag "stage=baseline" \
+            --tag "version=${{ github.event.inputs.version }}" \
+            --tag "deployment_id=${{ github.run_id }}" \
+            --tag "workflow=${{ github.workflow }}")
+          
+          SNAPSHOT_ID=$(echo "$OUTPUT" | grep "Snapshot ID:" | awk '{print $3}')
+          echo "id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "BASELINE_ID=$SNAPSHOT_ID" >> $GITHUB_ENV
+          
+          echo "✅ Baseline snapshot created: $SNAPSHOT_ID"
+          echo "::endgroup::"
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # DEPLOYMENT
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      - name: 🚀 Deploy application
+        id: deploy
+        run: |
+          echo "::group::Deploying ${{ github.event.inputs.version }} to ${{ github.event.inputs.environment }}"
+          
+          # Your actual deployment commands here
+          # For example:
+          # - kubectl apply -f k8s/
+          # - helm upgrade --install ...
+          # - terraform apply
+          # - etc.
+          
+          echo "Deploying version ${{ github.event.inputs.version }}..."
+          sleep 5  # Simulate deployment
+          
+          echo "✅ Deployment complete"
+          echo "::endgroup::"
+      
+      - name: ⏳ Wait for system stabilization
+        run: |
+          WAIT_TIME=${{ github.event.inputs.wait_time }}
+          echo "Waiting $WAIT_TIME seconds for system to stabilize..."
+          
+          # Calculate 10% interval for progress updates
+          INTERVAL=$((WAIT_TIME / 10))
+          REMAINDER=$((WAIT_TIME % 10))
+          
+          if [ $INTERVAL -lt 1 ]; then
+            # Wait time too short for progress updates, just sleep
+            sleep $WAIT_TIME
+          else
+            # Show progress every 10%
+            for i in {10..1}; do
+              PCT=$((i * 10))
+              REMAINING=$((INTERVAL * i))
+              [ $i -eq 1 ] && REMAINING=$((REMAINING + REMAINDER))
+              echo "⏱️  ${PCT}% remaining (~${REMAINING}s)..."
+              
+              # On last iteration, include remainder
+              if [ $i -eq 1 ]; then
+                sleep $((INTERVAL + REMAINDER))
+              else
+                sleep $INTERVAL
+              fi
+            done
+          fi
+          
+          echo "✅ Stabilization period complete"
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # POST-DEPLOYMENT SNAPSHOT
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      - name: 📸 Create comparison snapshot
+        id: comparison
+        run: |
+          echo "::group::Creating comparison snapshot"
+          
+          START_TIME=$(date -u -d "2 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          
+          OUTPUT=$(.causely/docs/examples/bash/create_snapshot_v2.sh \
+            --name "Comparison - ${{ github.event.inputs.environment }} - $TIMESTAMP" \
+            --description "Post-deployment snapshot for ${{ github.event.inputs.version }}" \
+            --start-time "$START_TIME" \
+            --tag "environment=${{ github.event.inputs.environment }}" \
+            --tag "stage=deployed" \
+            --tag "version=${{ github.event.inputs.version }}" \
+            --tag "deployment_id=${{ github.run_id }}" \
+            --tag "workflow=${{ github.workflow }}")
+          
+          SNAPSHOT_ID=$(echo "$OUTPUT" | grep "Snapshot ID:" | awk '{print $3}')
+          echo "id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "COMPARISON_ID=$SNAPSHOT_ID" >> $GITHUB_ENV
+          
+          echo "✅ Comparison snapshot created: $SNAPSHOT_ID"
+          echo "::endgroup::"
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # SNAPSHOT COMPARISON
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      - name: 🔍 Compare snapshots
+        id: compare
+        continue-on-error: true  # Don't fail workflow, just capture result
+        run: |
+          echo "::group::Comparing snapshots"
+          
+          .causely/docs/examples/bash/compare_snapshots_v2.sh \
+            "${{ steps.baseline.outputs.id }}" \
+            "${{ steps.comparison.outputs.id }}" \
+            > comparison-output.txt 2>&1
+          
+          RESULT=$?
+          cat comparison-output.txt
+          
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+      
+      - name: 📊 Parse comparison results
+        id: results
+        run: |
+          # Parse key metrics from comparison
+          if grep -q "ACCEPTED" comparison-output.txt; then
+            echo "assessment=ACCEPTED" >> $GITHUB_OUTPUT
+            echo "status=✅" >> $GITHUB_OUTPUT
+            echo "color=28a745" >> $GITHUB_OUTPUT  # Green
+          else
+            echo "assessment=REJECTED" >> $GITHUB_OUTPUT
+            echo "status=❌" >> $GITHUB_OUTPUT
+            echo "color=d73a4a" >> $GITHUB_OUTPUT  # Red
+          fi
+          
+          # Extract new defects count
+          NEW_DEFECTS=$(grep "New:" comparison-output.txt | head -1 | awk '{print $2}' || echo "0")
+          echo "new_defects=$NEW_DEFECTS" >> $GITHUB_OUTPUT
+          
+          # Extract cleared defects
+          CLEARED_DEFECTS=$(grep "Cleared:" comparison-output.txt | head -1 | awk '{print $2}' || echo "0")
+          echo "cleared_defects=$CLEARED_DEFECTS" >> $GITHUB_OUTPUT
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # REPORTING
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      - name: 📝 Create deployment summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # ${{ steps.results.outputs.status }} Deployment Summary
+          
+          ## Deployment Details
+          - **Environment:** ${{ github.event.inputs.environment }}
+          - **Version:** ${{ github.event.inputs.version }}
+          - **Deployment ID:** ${{ github.run_id }}
+          - **Triggered by:** @${{ github.actor }}
+          
+          ## Snapshot Comparison
+          - **Assessment:** ${{ steps.results.outputs.assessment }}
+          - **New Root Causes:** ${{ steps.results.outputs.new_defects }}
+          - **Cleared Root Causes:** ${{ steps.results.outputs.cleared_defects }}
+          
+          ## Snapshots
+          | Stage | Snapshot ID | Link |
+          |-------|-------------|------|
+          | Baseline | \`${{ steps.baseline.outputs.id }}\` | [View](https://app.causely.io/snapshots/${{ steps.baseline.outputs.id }}) |
+          | Deployed | \`${{ steps.comparison.outputs.id }}\` | [View](https://app.causely.io/snapshots/${{ steps.comparison.outputs.id }}) |
+          
+          ## Comparison Details
+          [View Comparison in Causely](https://app.causely.io/compare?ids=${{ steps.baseline.outputs.id }},${{ steps.comparison.outputs.id }})
+          
+          <details>
+          <summary>Full Comparison Output</summary>
+          
+          \`\`\`
+          $(cat comparison-output.txt)
+          \`\`\`
+          
+          </details>
+          EOF
+      
+      - name: 🔔 Create deployment badge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const assessment = '${{ steps.results.outputs.assessment }}';
+            const color = '${{ steps.results.outputs.color }}';
+            const badgeUrl = `https://img.shields.io/badge/Deployment-${assessment}-${color}`;
+            console.log(`Badge URL: ${badgeUrl}`);
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # DECISION POINT
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      - name: ⚠️ Handle rejected deployment
+        if: steps.results.outputs.assessment == 'REJECTED'
+        run: |
+          echo "::warning::Deployment comparison was REJECTED"
+          echo "New root causes detected: ${{ steps.results.outputs.new_defects }}"
+          echo ""
+          echo "Review the comparison in Causely:"
+          echo "https://app.causely.io/compare?ids=${{ steps.baseline.outputs.id }},${{ steps.comparison.outputs.id }}"
+          
+          # Uncomment to auto-rollback on rejection:
+          # echo "::error::Automatic rollback triggered"
+          # exit 1
+      
+      - name: ✅ Deployment successful
+        if: steps.results.outputs.assessment == 'ACCEPTED'
+        run: |
+          echo "::notice::Deployment completed successfully with ACCEPTED comparison"
+          echo "No new root causes detected"
+
+# Optional: Add a separate rollback job
+# jobs:
+#   rollback:
+#     needs: deploy-with-snapshots
+#     if: failure()
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Rollback deployment
+#         run: |
+#           echo "Performing rollback..."
+#           # Your rollback commands here
+

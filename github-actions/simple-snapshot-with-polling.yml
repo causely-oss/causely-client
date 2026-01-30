@@ -1,0 +1,144 @@
+name: Create Snapshot and Wait for Completion
+
+# Example showing how to create a snapshot and poll until it's complete
+# This is useful when you need the snapshot to be ready before proceeding
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      snapshot_name:
+        description: 'Snapshot name'
+        required: false
+        default: 'GitHub Actions Snapshot'
+      wait_for_completion:
+        description: 'Wait for snapshot to complete'
+        required: false
+        type: boolean
+        default: true
+  
+  push:
+    branches: [main]  # Auto-trigger on push to main
+
+jobs:
+  create-snapshot:
+    runs-on: ubuntu-latest
+    
+    env:
+      FRONTEGG_CLIENT_ID: ${{ secrets.FRONTEGG_CLIENT_ID }}
+      FRONTEGG_CLIENT_SECRET: ${{ secrets.FRONTEGG_CLIENT_SECRET }}
+    
+    steps:
+      # 1. Checkout your application repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # 2. Checkout Causely scripts
+      - name: Checkout Causely scripts
+        uses: actions/checkout@v4
+        with:
+          repository: Causely/causely-api-client
+          sparse-checkout: |
+            shell
+          path: .causely
+      
+      # 3. Install required dependencies
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+      
+      # 4. Create the snapshot
+      - name: Create snapshot
+        id: create
+        run: |
+          START_TIME=$(date -u -d "2 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          SNAPSHOT_NAME="${{ github.event.inputs.snapshot_name || 'GitHub Actions Snapshot' }}"
+          
+          OUTPUT=$(.causely/shell/create_snapshot.sh \
+            --name "$SNAPSHOT_NAME" \
+            --description "Automated snapshot from workflow run #${{ github.run_number }}" \
+            --start-time "$START_TIME" \
+            --tag "workflow=${{ github.workflow }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "branch=${{ github.ref_name }}")
+          
+          echo "$OUTPUT"
+          
+          # Extract snapshot ID from output
+          SNAPSHOT_ID=$(echo "$OUTPUT" | grep "Snapshot ID:" | awk '{print $NF}')
+          echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "SNAPSHOT_ID=$SNAPSHOT_ID" >> $GITHUB_ENV
+          
+          echo "✅ Snapshot created: $SNAPSHOT_ID"
+          echo "ℹ️  Initial status: PENDING (processing in background)"
+      
+      # 5. Poll for completion (if requested)
+      - name: Poll for completion
+        if: github.event.inputs.wait_for_completion != 'false'
+        id: poll
+        run: |
+          # Source the library functions
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          . .causely/shell/lib/causely_common.sh
+          . .causely/shell/lib/causely_auth.sh
+          . .causely/shell/lib/causely_graphql.sh
+          
+          # Set up authentication
+          setup_causely_auth || exit 1
+          
+          print_header "Waiting for snapshot to complete..."
+          print_info "This may take a few minutes to 45 minutes depending on environment size"
+          
+          # Poll until completion (default: 30s interval, 45min max)
+          FINAL_SNAPSHOT=$(poll_snapshot_status \
+            "$API_URL" \
+            "$TOKEN" \
+            "$SNAPSHOT_ID" \
+            "30" \      # Poll every 30 seconds
+            "2700")     # Max wait 45 minutes
+          
+          if [ $? -eq 0 ]; then
+            print_success "Snapshot completed successfully!"
+            echo "status=complete" >> $GITHUB_OUTPUT
+            
+            # Extract final status info
+            FINAL_STATUS=$(echo "$FINAL_SNAPSHOT" | jq -r '.status')
+            echo "final_status=$FINAL_STATUS" >> $GITHUB_OUTPUT
+            
+            echo "$FINAL_SNAPSHOT" | jq '.'
+          else
+            print_error "Snapshot failed or timed out"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      # 6. Add job summary
+      - name: Add job summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Snapshot Status
+          
+          **Snapshot ID:** \`${{ steps.create.outputs.snapshot_id }}\`
+          
+          **Details:**
+          - Name: ${{ github.event.inputs.snapshot_name || 'GitHub Actions Snapshot' }}
+          - Workflow: ${{ github.workflow }}
+          - Run Number: ${{ github.run_number }}
+          - Commit: \`${{ github.sha }}\`
+          - Branch: ${{ github.ref_name }}
+          EOF
+          
+          if [ "${{ steps.poll.outputs.status }}" = "complete" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** ✅ COMPLETE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**View in Causely:**" >> $GITHUB_STEP_SUMMARY
+            echo "[Open Snapshot](https://app.causely.io/snapshots/${{ steps.create.outputs.snapshot_id }})" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.poll.outputs.status }}" = "failed" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** ❌ FAILED or TIMEOUT" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** ⏳ PENDING (processing in background)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Note:** Snapshot is processing. Use polling to wait for completion." >> $GITHUB_STEP_SUMMARY
+          fi

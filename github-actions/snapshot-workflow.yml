@@ -1,0 +1,194 @@
+name: Causely Snapshot Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot_name:
+        description: 'Name for the snapshot'
+        required: false
+        default: 'GitHub Actions Snapshot'
+      snapshot_description:
+        description: 'Description for the snapshot'
+        required: false
+        default: 'Automated snapshot from GitHub Actions'
+      hours_back:
+        description: 'Hours back to start snapshot from'
+        required: false
+        default: '2'
+  push:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  create-snapshot:
+    runs-on: ubuntu-latest
+    env:
+      # Frontegg authentication
+      FRONTEGG_IDENTITY_HOST: https://auth.causely.app/identity/resources/auth/v2/api-token
+      APP_BASE_URL: https://api.causely.app/query
+      FRONTEGG_CLIENT_ID: ${{ secrets.FRONTEGG_CLIENT_ID }}
+      FRONTEGG_CLIENT_SECRET: ${{ secrets.FRONTEGG_CLIENT_SECRET }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+      
+      - name: Set snapshot parameters
+        id: params
+        run: |
+          # Use workflow inputs or defaults
+          NAME="${{ github.event.inputs.snapshot_name || 'GitHub Actions Snapshot' }}"
+          DESCRIPTION="${{ github.event.inputs.snapshot_description || 'Automated snapshot from GitHub Actions' }}"
+          HOURS_BACK="${{ github.event.inputs.hours_back || '2' }}"
+          
+          # Calculate timestamps
+          START_TIME=$(date -u -d "$HOURS_BACK hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          # Add run context to name
+          NAME="$NAME - Run #${{ github.run_number }}"
+          DESCRIPTION="$DESCRIPTION (triggered by ${{ github.event_name }} at $END_TIME)"
+          
+          # Export for next steps
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "description=$DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "start_time=$START_TIME" >> $GITHUB_OUTPUT
+          echo "end_time=$END_TIME" >> $GITHUB_OUTPUT
+          
+          echo "📝 Snapshot parameters:"
+          echo "  Name: $NAME"
+          echo "  Description: $DESCRIPTION"
+          echo "  Start Time: $START_TIME"
+          echo "  End Time: $END_TIME"
+      
+      - name: Create snapshot
+        id: create
+        run: |
+          chmod +x ./docs/examples/bash/create_snapshot.sh
+          
+          # Run the script - it will use environment variables for auth
+          OUTPUT=$(./docs/examples/bash/create_snapshot.sh \
+            "${{ steps.params.outputs.name }}" \
+            "${{ steps.params.outputs.description }}" \
+            "${{ steps.params.outputs.start_time }}" \
+            "${{ steps.params.outputs.end_time }}")
+          
+          echo "$OUTPUT"
+          
+          # Extract snapshot ID from output
+          SNAPSHOT_ID=$(echo "$OUTPUT" | grep "Snapshot ID:" | awk '{print $NF}')
+          echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "✅ Created snapshot: $SNAPSHOT_ID"
+      
+      - name: Summary
+        run: |
+          echo "## Snapshot Created ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Snapshot ID:** \`${{ steps.create.outputs.snapshot_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Name:** ${{ steps.params.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Description:** ${{ steps.params.outputs.description }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time Range:** ${{ steps.params.outputs.start_time }} to ${{ steps.params.outputs.end_time }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+  compare-snapshots:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    env:
+      FRONTEGG_IDENTITY_HOST: https://auth.causely.app/identity/resources/auth/v2/api-token
+      APP_BASE_URL: https://api.causely.app/query
+      FRONTEGG_CLIENT_ID: ${{ secrets.FRONTEGG_CLIENT_ID }}
+      FRONTEGG_CLIENT_SECRET: ${{ secrets.FRONTEGG_CLIENT_SECRET }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+      
+      - name: Create pre-deployment snapshot
+        id: pre
+        run: |
+          chmod +x ./docs/examples/bash/create_snapshot.sh
+          
+          START_TIME=$(date -u -d "2 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          OUTPUT=$(./docs/examples/bash/create_snapshot.sh \
+            "Pre-Deploy Snapshot #${{ github.run_number }}" \
+            "Baseline before deployment - SHA: ${{ github.sha }}" \
+            "$START_TIME" \
+            "$END_TIME")
+          
+          SNAPSHOT_ID=$(echo "$OUTPUT" | grep "Snapshot ID:" | awk '{print $NF}')
+          echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "✅ Pre-deployment snapshot: $SNAPSHOT_ID"
+      
+      - name: Simulate deployment
+        run: |
+          echo "🚀 Simulating deployment..."
+          echo "   In a real workflow, this is where you'd deploy your application"
+          sleep 30
+      
+      - name: Wait for system stabilization
+        run: |
+          echo "⏳ Waiting for system to stabilize..."
+          sleep 60
+      
+      - name: Create post-deployment snapshot
+        id: post
+        run: |
+          START_TIME=$(date -u -d "2 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          OUTPUT=$(./docs/examples/bash/create_snapshot.sh \
+            "Post-Deploy Snapshot #${{ github.run_number }}" \
+            "After deployment - SHA: ${{ github.sha }}" \
+            "$START_TIME" \
+            "$END_TIME")
+          
+          SNAPSHOT_ID=$(echo "$OUTPUT" | grep "Snapshot ID:" | awk '{print $NF}')
+          echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "✅ Post-deployment snapshot: $SNAPSHOT_ID"
+      
+      - name: Compare snapshots
+        id: compare
+        run: |
+          chmod +x ./docs/examples/bash/compare_snapshots.sh
+          
+          # Note: This is a placeholder - you'll need to update compare_snapshots.sh
+          # to support Frontegg auth similar to create_snapshot.sh
+          echo "📊 Comparing snapshots:"
+          echo "  Before: ${{ steps.pre.outputs.snapshot_id }}"
+          echo "  After: ${{ steps.post.outputs.snapshot_id }}"
+          
+          # For now, just log the IDs - implement comparison in future
+          echo "⚠️  Comparison functionality to be implemented"
+          echo "   Snapshot IDs have been captured for manual comparison"
+      
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Validation 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Snapshots Created" >> $GITHUB_STEP_SUMMARY
+          echo "**Pre-deployment:** \`${{ steps.pre.outputs.snapshot_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Post-deployment:** \`${{ steps.post.outputs.snapshot_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Info" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "Compare the snapshots in Causely UI:" >> $GITHUB_STEP_SUMMARY
+          echo "- Navigate to Snapshots" >> $GITHUB_STEP_SUMMARY
+          echo "- Select the two snapshot IDs above" >> $GITHUB_STEP_SUMMARY
+          echo "- Click 'Compare' to view differences" >> $GITHUB_STEP_SUMMARY
+
