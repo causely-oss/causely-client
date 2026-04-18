@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "causely": {
+      "type": "http",
+      "url": "https://api.causely.app/mcp"
+    }
+  }
+}

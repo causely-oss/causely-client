@@ -1,0 +1,3 @@
+[mcp_servers.causely]
+url = "https://api.causely.app/mcp"
+enabled = true

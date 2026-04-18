@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "causely": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://api.causely.app/mcp"]
+    }
+  }
+}
