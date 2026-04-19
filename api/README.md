@@ -112,7 +112,7 @@ Want to contribute to this project? See [CONTRIBUTING.md](CONTRIBUTING.md) for d
 ## Additional Resources
 
 - **[Causely Platform](https://portal.causely.app/)** - Main platform portal
-- **[Causely Documentation](https://docs.causely.io/)** - Official documentation
+- **[Causely Documentation](https://docs.causely.ai/)** - Official documentation
 
 ---
 

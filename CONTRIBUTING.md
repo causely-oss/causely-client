@@ -1,6 +1,6 @@
-# Contributing to Causely API Client
+# Contributing to Causely client tooling
 
-This guide is for developers who want to contribute to the Causely API Client repository.
+This guide is for developers who want to contribute to this repository ([github.com/causely-oss/causely-client](https://github.com/causely-oss/causely-client)). The Go module for the CLI is `github.com/Causely/causely-api-client` (see root [`go.mod`](go.mod)).
 
 ## Table of Contents
 
@@ -14,60 +14,76 @@ This guide is for developers who want to contribute to the Causely API Client re
 ## Project Structure
 
 ```
-causely-api-client/
+causely-client/
 ├── README.md                    # User-facing overview
 ├── CONTRIBUTING.md              # This file (developer guide)
-├── docs/                        # User documentation (numbered)
-│   ├── 01-overview.md
-│   ├── 02-quick-start.md
-│   ├── 03-api-reference.md
-│   ├── 04-authentication.md
-│   ├── 05-shell-implementation.md
-│   ├── 06-github-actions.md
-│   ├── 07-examples-and-use-cases.md
-│   └── 08-advanced-topics.md
-├── shell/                       # Shell/Bash implementation
-│   ├── lib/                    # Reusable libraries
-│   │   ├── causely_common.sh  # Colors, printing, utilities
-│   │   ├── causely_auth.sh    # Frontegg authentication
-│   │   └── causely_graphql.sh # GraphQL operations
-│   ├── tests/                  # Test suite
-│   │   ├── test_framework.sh  # Test framework
-│   │   ├── test_common.sh     # Tests for common utilities
-│   │   ├── test_graphql.sh    # Tests for GraphQL operations
-│   │   ├── test_auth.sh       # Tests for authentication
-│   │   └── run_all_tests.sh  # Master test runner
-│   └── *.sh                    # Production scripts
-└── github-actions/              # GitHub Actions workflows
-    └── *.yml                   # Workflow examples
+├── go.mod / go.sum              # Go module for the CLI (`cli/`)
+├── mcp/                         # MCP skills, references, starter agent configs
+│   ├── SKILL.md                 # Master router skill (causely-mcp)
+│   ├── complete-investigation.md
+│   ├── skills/                  # Leaf skills (one directory per skill)
+│   └── plugins/                 # Cursor, Claude, Codex, VS Code, OpenCode snippets
+├── cli/                         # Kubernetes install CLI (Go)
+│   └── ...
+└── api/                         # Shell GraphQL client, docs, GitHub Actions
+    ├── README.md
+    ├── docs/                    # User documentation (numbered)
+    │   ├── 01-overview.md
+    │   ├── 02-quick-start.md
+    │   ├── 03-api-reference.md
+    │   ├── 04-authentication.md
+    │   ├── 05-shell-implementation.md
+    │   ├── 06-github-actions.md
+    │   ├── 07-examples-and-use-cases.md
+    │   └── 08-advanced-topics.md
+    ├── shell/                   # Shell/Bash implementation
+    │   ├── lib/                 # Reusable libraries
+    │   │   ├── causely_common.sh
+    │   │   ├── causely_auth.sh
+    │   │   └── causely_graphql.sh
+    │   ├── tests/
+    │   └── *.sh                 # Production scripts
+    └── github-actions/          # GitHub Actions workflow examples
+        └── *.yml
 ```
 
 ## Development Setup
 
-### Prerequisites
+### API shell client (`api/`)
+
+**Prerequisites**
 
 - POSIX-compliant shell (sh, bash, zsh, dash, ash)
 - `jq` 1.5+ (JSON processing)
 - `curl` (HTTP requests)
 - `bc` (floating-point math)
 
-### Local Development
+**Clone and run tests**
 
 ```bash
-# Clone the repository
-git clone https://github.com/Causely/causely-api-client.git
-cd causely-api-client
+git clone https://github.com/causely-oss/causely-client.git
+cd causely-client
 
-# Run tests
-cd shell/tests
+cd api/shell/tests
 ./run_all_tests.sh
 ```
 
+### CLI (`cli/`)
+
+Build from the repository root:
+
+```bash
+go build -C cli -o causely .
+./causely version
+```
+
+See [`cli/README.md`](cli/README.md) for install, auth, and Helm-related behavior.
+
 ## Code Style
 
-### POSIX Compliance
+### POSIX Compliance (shell under `api/shell/`)
 
-All code must be **fully POSIX-compliant**:
+All shell code must be **fully POSIX-compliant**:
 - Works with sh, ash, dash, bash, zsh
 - No Bash-specific extensions
 - Tested on Alpine Linux (ash) and Ubuntu (dash)
@@ -104,10 +120,10 @@ fi
 
 ## Testing
 
-### Running Tests
+### API shell tests
 
 ```bash
-cd shell/tests
+cd api/shell/tests
 
 # Run all tests
 ./run_all_tests.sh
@@ -168,11 +184,11 @@ test_summary
 - ✅ Edge cases (90%)
 - ⚠️ Integration tests (minimal - requires credentials)
 
-See `shell/tests/README.md` for complete testing documentation.
+See [`api/shell/tests/README.md`](api/shell/tests/README.md) for testing documentation.
 
 ## Architecture
 
-### Library Organization
+### Library Organization (`api/shell/lib/`)
 
 Libraries are organized by responsibility:
 
@@ -220,7 +236,7 @@ Examples: `causely_graphql.sh` (GraphQL utilities)
 
 ### Before Submitting
 
-1. ✅ Run all tests: `cd shell/tests && ./run_all_tests.sh`
+1. ✅ Run API shell tests: `cd api/shell/tests && ./run_all_tests.sh`
 2. ✅ Test with multiple shells (sh, bash, dash)
 3. ✅ Update documentation if needed
 4. ✅ Follow code style guidelines
@@ -251,6 +267,6 @@ Fixes #123
 
 ## Questions?
 
-- Check `shell/tests/README.md` for testing documentation
+- Check [`api/shell/tests/README.md`](api/shell/tests/README.md) for testing documentation
 - Review existing code for patterns
 - Open an issue for discussion

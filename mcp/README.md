@@ -1,6 +1,6 @@
 # Causely Skills for Claude
 
-7 skills covering all 25 Causely MCP tools. Drop each folder into your skills directory.
+Seven skills cover all 25 Causely MCP tools. Install the **master router** by copying [`SKILL.md`](SKILL.md) and [`complete-investigation.md`](complete-investigation.md) from this `mcp/` directory into your agent’s skills layout (see your product’s skill docs for paths). Install each **leaf** skill by copying a folder from [`skills/`](skills/) (the folder includes `SKILL.md` and `references/complete-investigation.md`).
 
 ## Skills
 
@@ -27,4 +27,4 @@ All 25 Causely MCP tools are covered across the skills:
 
 ## Shared reference
 
-Each skill includes `references/complete-investigation.md` — the master reference doc with the full tool inventory, decision trees, evidence strategy, owner resolution, and fallback guidance.
+Each **leaf** skill under `skills/` includes `references/complete-investigation.md` (in this repository it is a symlink to [`complete-investigation.md`](complete-investigation.md) beside this README). The **causely-mcp** router skill reads `complete-investigation.md` from the same `mcp/` directory as `SKILL.md`. That file is the master reference: full tool inventory, decision trees, evidence strategy, owner resolution, and fallback guidance.

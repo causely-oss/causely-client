@@ -16,8 +16,8 @@ Product documentation lives at [docs.causely.ai](https://docs.causely.ai/). For 
 
 - **[`mcp/README.md`](mcp/README.md)** — Overview of the seven packaged skills (alert triage, change impact, health reporting, K8s investigation, correlated incidents, postmortems, and the master MCP router).
 - **[`mcp/plugins/README.md`](mcp/plugins/README.md)** — How to wire the hosted MCP server (`https://api.causely.app/mcp`) into Claude, Cursor, Codex, GitHub Copilot, OpenCode, and related tools, including optional custom headers.
-- **Skills** live under [`mcp/skills/`](mcp/skills/) (each folder is a drop-in skill with `SKILL.md` and references).
-- **Root skill** — [`mcp/SKILL.md`](mcp/SKILL.md) plus [`mcp/complete-investigation.md`](mcp/complete-investigation.md) for full tool routing and investigation patterns.
+- **Leaf skills** — six drop-in folders under [`mcp/skills/`](mcp/skills/), each with `SKILL.md` and `references/complete-investigation.md` (symlink to the shared [`mcp/complete-investigation.md`](mcp/complete-investigation.md) in this repo).
+- **Master router skill** — [`mcp/SKILL.md`](mcp/SKILL.md) (same `causely-mcp` role as in the skills overview) plus [`mcp/complete-investigation.md`](mcp/complete-investigation.md) at the `mcp/` root for full tool routing and investigation patterns.
 
 ---
 
