@@ -1,0 +1,14 @@
+{
+  "name": "causely-plugins",
+  "owner": {
+    "name": "Causely",
+    "email": "support@causely.ai"
+  },
+  "plugins": [
+    {
+      "name": "causely",
+      "source": "./mcp/plugins/cursor/causely",
+      "description": "System ontology and causal intelligence for application reliability"
+    }
+  ]
+}
