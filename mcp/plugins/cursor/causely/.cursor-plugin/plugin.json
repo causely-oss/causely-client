@@ -1,0 +1,25 @@
+{
+  "name": "causely",
+  "displayName": "Causely",
+  "version": "1.0.0",
+  "description": "Use Causely directly in Cursor through a preconfigured MCP server. Query service health, root causes, SLOs, metrics, and topology through natural conversation — grounded in system ontology and live causal intelligence.",
+  "author": {
+    "name": "Causely",
+    "email": "support@causely.ai"
+  },
+  "license": "Apache-2.0",
+  "logo": "logo.svg",
+  "homepage": "https://causely.ai",
+  "repository": "https://github.com/causely-oss/causely-client",
+  "keywords": [
+    "causely",
+    "observability",
+    "kubernetes",
+    "root-cause-analysis",
+    "incidents",
+    "slo",
+    "causal-intelligence",
+    "ontology",
+    "reliability"
+  ]
+}
