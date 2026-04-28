@@ -48,14 +48,15 @@ For non-interactive or CI environments, generate API credentials at [auth.causel
 
 ## Packaged skills
 
-This plugin includes six skills that activate automatically for the right type of question:
+This plugin includes seven skills (the same set as in [`mcp/README.md`](../../../README.md)) that activate automatically for the right type of question:
 
-- `causely-alert-triage` — incoming alerts from PagerDuty, Datadog, Prometheus, OpsGenie
+- `causely-mcp` — master router for any observability or reliability question (all MCP tools)
 - `causely-change-impact` — post-deploy regression checks and rollout validation
-- `causely-correlated-incidents` — multi-service failures and blast radius analysis
 - `causely-health-reporting` — health summaries, SLO status, morning briefings
+- `causely-correlated-incidents` — multi-service failures and blast radius analysis
 - `causely-k8s-investigation` — Kubernetes infrastructure: pods, nodes, namespaces
 - `causely-postmortem` — post-mortems, incident reports, and ticket drafts
+- `causely-alert-triage` — incoming alerts from PagerDuty, Datadog, Prometheus, OpsGenie
 
 ## Support
 
