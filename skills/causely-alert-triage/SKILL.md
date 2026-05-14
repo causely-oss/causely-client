@@ -1,12 +1,14 @@
 ---
 name: causely-alert-triage
 description: >
-  Use this skill when the user is starting from an alert — they received a PagerDuty page, Datadog alert, Prometheus/Alertmanager notification, Slack alert, or OpsGenie notification and want to understand what it means. Trigger for questions like "I got paged for KubeContainerWaiting", "what does this alert mean?", "PagerDuty woke me up for high error rate on checkout", "Datadog says memory is high on X", "what alerts are firing on X?", "how many unmapped alerts do we have?", "is this alert noise or real?", "which alerts map to Causely symptoms?", or "audit alert noise". Also trigger when the user pastes an alert name, alert payload, or references an external alerting system. Use this skill over generic causely-mcp when the investigation starts from an alert rather than from a service name or health question.
+  Use this skill when the user is starting from an alert — they received a PagerDuty page, Datadog alert, Prometheus/Alertmanager notification, Slack alert, or OpsGenie notification and want to understand what it means. Trigger for questions like "I got paged for KubeContainerWaiting", "what does this alert mean?", "PagerDuty woke me up for high error rate on checkout", "Datadog says memory is high on X", "what alerts are firing?", "what alerts are firing on X?", "how many unmapped alerts do we have?", "is this alert noise or real?", "which alerts map to Causely symptoms?", or "audit alert noise". Also trigger when the user pastes an alert name, alert payload, or references an external alerting system.
 ---
 
 # Causely Alert Triage Skill
 
 Read `references/complete-investigation.md` for the full 25-tool inventory and evidence strategy.
+
+Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
 
 ---
 
@@ -14,82 +16,62 @@ Read `references/complete-investigation.md` for the full 25-tool inventory and e
 
 | Tool | Use when | What it returns |
 |---|---|---|
-| `get_entities(query=, entity_types=)` | Resolve the service/entity from the alert | Entity IDs for the affected service |
-| `get_alerts(entity_ids=)` | See all alerts firing + mapping state | Alert name, symptom mapping, severity, count, timestamps |
+| `get_alerts(alert_name_expr=)` | **Search alerts by name — no entity IDs needed.** Substring search across alert name, entity name, and cluster. | Alert name, symptom mapping, severity, count, timestamps |
+| `investigate_alert(alert=)` | **One-step alert investigation.** Pass a raw alert object from `get_alerts`, get `get_entity_health` result back alongside the alert. | Entity health summary + original alert context |
+| `get_alerts(entity_ids=)` | Scope alerts to a specific entity | All alerts firing on that entity |
 | `get_root_causes(symptom_ids=)` | Find diagnosed cause behind a mapped alert | Root causes with evidence, blast radius, remediation |
-| `triage(entity_name=)` | Quick full-picture health check | Root causes, symptoms, impact — all in one call |
-| `get_symptoms(entity_ids=)` | Check which alerts promoted to symptoms | Named signals in the causal graph |
-| `ask_causely(question=)` | Free-form query when alert name doesn't resolve | NL fallback for complex alert-to-cause questions |
+| `get_service_summary(service=)` | Full health check when service name is known | All-in-one: symptoms + RCs + SLOs + metrics + deps + events + logs |
+| `get_symptoms()` | All active symptoms, no IDs needed | Full signal picture including crash/OOM/pod failures |
 
 ---
 
-## Core rule: alerts → entities → causes
+## Core rule: get_alerts + investigate_alert
 
-External alerting systems (PagerDuty, Datadog, Alertmanager) fire raw alert names. Causely maps some alerts to named symptoms in its causal model. The workflow bridges from alert → entity → mapped symptom → root cause.
+**`get_alerts` supports `alert_name_expr`** — case-insensitive substring search across alert names, entity names, and clusters. Entity IDs are optional.
 
-**`ask_causely` cannot resolve raw alert names.** Don't use it for "what is causing KubeContainerWaiting?" — use the structured workflow below.
+**`investigate_alert` is the one-step follow-up.** Pass a raw alert object from `get_alerts` and get entity health back — no need to separately resolve entity IDs and call `get_entity_health`.
+
+**`alert_state_filters`** (e.g. `["firing","resolved"]`) overrides `active_only` when set.
+
+**Mapping states:** `"mapped_entity_symptom"` (Causely has mapped to a symptom) and `"unmapped"` (not incorporated).
+
+**For unmapped alerts:** do not try to infer an entity or call other tools — surface the unmapped state directly to the user.
 
 ---
 
 ## Decision tree
 
+**Alert received — search by alert name (recommended):**
+```
+get_alerts(alert_name_expr="<alert-name>", active_only=true)   ← 1 call
+  → if mapped (mapping_state="mapped_entity_symptom"):
+       → investigate_alert(alert=<alert_object>)                ← 1 call, entity health + alert
+       → or get_root_causes(symptom_ids=[...]) for diagnosis
+  → if unmapped: surface unmapped state to user
+```
+
 **Alert received — service name known:**
 ```
-triage(entity_name="<service>")                            ← 1 call
-  → if root causes found: that's likely what triggered the alert
-  → description = evidence, remediation = what to do
-  → done in most cases
+get_service_summary(service="<service>")                       ← 1 call
+  → full picture — likely shows what triggered the alert
 ```
 
-If you need to see the specific alert and its mapping status:
+**Alert noise audit:**
 ```
-get_entities(query="<service>", entity_types=["Service"])   ← 1 call
-get_alerts(entity_ids=[id], active_only=true)               ← 1 call
-  → find the alert by name
-  → mapping_state = "mapped" → Causely has incorporated it
-  → mapping_state = "unmapped" → Causely hasn't promoted it to a symptom
-  → if mapped: symptom_name → get_root_causes(symptom_ids=[...]) for cause
+get_alerts(active_only=true, mapping_state_filters=["unmapped"])  ← 1 call
+  → high-count unmapped alerts = noise candidates
 ```
 
-**Alert received — service name unknown:**
+**Time-scoped alert review:**
 ```
-ask_causely("What active root causes are there right now?")  ← 1 call
-  → scan results for the alert pattern or affected service
-  → then triage the identified service
-```
-
-**Alert name known, want to check if Causely knows about it:**
-```
-get_entities(query="<service>")                             ← 1 call
-get_alerts(entity_ids=[id], alert_name_filters=["<alert-name>"])  ← 1 call
-  → mapping_state tells you if Causely has incorporated this alert
-  → if mapped: follow symptom_name → root cause chain
-  → if unmapped: alert is noise or not yet incorporated
-```
-
-**Alert noise audit ("how noisy are our alerts?"):**
-```
-get_entities(query="<service>")                             ← 1 call
-get_alerts(entity_ids=[id], mapping_state_filters=["unmapped"])  ← 1 call
-  → high-count unmapped alerts = noise candidates for tuning
-  → compare with get_alerts(mapping_state_filters=["mapped"]) for signal-to-noise
+get_alerts(start_time="...", end_time="...", alert_state_filters=["firing","resolved"])  ← 1 call
 ```
 
 **Multiple alerts firing at once:**
 ```
-get_root_causes(active_only=true)                           ← 1 call
-  → check if multiple alerts map to the same root cause
-  → impact_service_graph shows propagation → many alerts, one origin
+get_symptoms()                                              ← 1 call, all signals
+  → or get_root_causes(active_only=true) to check shared origin
 ```
-
----
-
-## Mapping state guide
-
-| mapping_state | Meaning | Action |
-|---|---|---|
-| `mapped` | Causely has promoted this alert to a named symptom | Follow `symptom_name` → `get_root_causes(symptom_ids=)` for diagnosis |
-| `unmapped` | Causely hasn't incorporated this alert | May be noise, or a new signal type not yet configured |
 
 ---
 
@@ -97,31 +79,11 @@ get_root_causes(active_only=true)                           ← 1 call
 
 ### 🔔 Alert triage: [alert name]
 
-**Alert:** [alert_name from get_alerts or user's description]
-**Service:** [entity name]
-**Status:** [firing / resolved] · **Severity:** [from alert]
-**Causely mapping:** ✅ Mapped to symptom "[symptom_name]" / ❌ Unmapped
-
-**Root cause:** [from triage or get_root_causes — name + entity + portal link]
-
+**Alert:** [alert_name] · **Service:** [entity name] · **Status:** [firing/resolved] · **Severity:** [from alert]
+**Causely mapping:** ✅ Mapped to "[symptom_name]" / ❌ Unmapped
+**Root cause:** [from investigate_alert or get_root_causes — name + portal link]
 **Evidence:** [from description field]
-
 **Blast radius:** [from impacted_services]
-
 **Customer impact:** [from impacted_customers]
-
-**Owner:** [from causely.ai/team label]
-
 **Recommended actions:** [from remediation field]
-
 **Links:** [portal links]
-
----
-
-## Important behaviours
-
-- **Start with `triage` when you have a service name.** It's faster and gives the full picture without needing to resolve alert → symptom → root cause manually.
-- **Use `get_alerts` when the user specifically wants to see alert-level detail** — mapping status, alert counts, firing times.
-- **Don't use `ask_causely` for alert name resolution** — it can't resolve raw Alertmanager or Datadog alert names to Causely entities.
-- **Unmapped ≠ irrelevant**: an unmapped alert might be a real signal that Causely hasn't been configured to ingest yet. Don't dismiss it.
-- **Multiple alerts, one cause**: when the user reports several alerts, check `get_root_causes` first — they often share a single origin visible in the impact graph.
