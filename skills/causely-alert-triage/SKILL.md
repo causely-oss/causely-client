@@ -6,7 +6,7 @@ description: >
 
 # Causely Alert Triage Skill
 
-Read `references/complete-investigation.md` for the full 25-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
 
@@ -31,7 +31,7 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs befo
 ```
 get_alerts(alert_name_expr="<alert-name>", active_only=true)   ← 1 call
   → if mapped (mapping_state="mapped_entity_symptom"):
-       → investigate_alert(alert=<alert_object>)                ← 1 call, entity health + alert
+       → investigate_alert(alert=<alert_object>)                ← 1 call
        → or get_root_causes(symptom_ids=[...]) for diagnosis
        → get_incident_impact(root_cause_id=) for responsibility
   → if unmapped: surface unmapped state to user

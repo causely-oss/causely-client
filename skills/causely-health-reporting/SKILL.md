@@ -6,7 +6,7 @@ description: >
 
 # Causely Health Reporting Skill
 
-Read `references/complete-investigation.md` for the full 25-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
 
@@ -17,12 +17,11 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs befo
 | Tool | Use when | What it returns |
 |---|---|---|
 | `get_service_summary(service=)` | **Primary tool for single-service health by name.** Resolves name automatically. | Status + symptoms + RCs + SLOs + metrics + deps + slow queries + events + errors |
-| `get_environment_health()` | Global or scoped health overview | Overall status + active root causes + remediation |
-| `get_root_causes(active_only=true)` | All active issues with evidence | Structured JSON per RC |
+| `get_environment_health()` | Global or scoped health overview. **Also returns at-risk SLOs** — use for system-wide SLO status. | Overall status + active root causes + at-risk SLOs + remediation |
+| `get_root_causes(active_only=true)` | All active issues with evidence | Structured JSON per RC (>10 results truncate detail — use filters) |
 | `team_health(team=)` | Team-scoped standup. Follow up with `get_incident_impact` for degraded services. | Degraded/critical first, healthy grouped at end |
 | `get_symptoms()` | **All active symptoms across every entity** — no IDs needed | Full signal picture |
-| `name_lookup` → `get_slo(entity_ids=)` | SLO error budget and burn rate | Per-SLO: budget %, burn rate, at-risk/violated |
-| `ask_causely(question=)` | System-wide SLO overview (no entity IDs needed) | "Which services have SLOs at risk?" |
+| `name_lookup` → `get_slo(entity_ids=)` | SLO error budget and burn rate for specific services | Per-SLO: budget %, burn rate, at-risk/violated |
 | `get_entity_health(entity_id=)` | Non-service entity health (DBs, pods, queues) | Symptoms, RCs, events, logs, metrics |
 
 ---
@@ -31,18 +30,17 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs befo
 
 **"Is X healthy?" → `get_service_summary` (1 call)**
 ```
-get_service_summary(service="<name>")                      ← 1 call, resolves name
+get_service_summary(service="<name>")
 ```
 
 **Morning standup / system sweep:**
 ```
-get_environment_health()                                  ← 1 call
+get_environment_health()                                  ← 1 call, includes at-risk SLOs
 ```
 
 **Namespace/cluster/product-scoped health:**
 ```
 get_environment_health(namespaces=["otel-demo"])           ← 1 call
-get_environment_health(clusters=["prod-cluster"])          ← 1 call
 ```
 
 **Team standup:**
@@ -53,7 +51,8 @@ team_health(team="<team>")                                 ← 1 call
 
 **SLO-focused report:**
 ```
-ask_causely("Which services have SLOs at risk or violated?")  ← 1 call
+get_environment_health()                                   ← 1 call, returns at-risk SLOs
+  → or for specific services: name_lookup → get_slo(entity_ids=, only_at_risk=true)
 ```
 
 **Weekly report / trend analysis:**
@@ -73,7 +72,7 @@ get_root_causes(active_only=false, lookback_hours=168)     ← 1 call
 |---|---|---|---|---|---|---|
 | [from response] |
 
-**SLOs at risk:** [from get_slo or ask_causely]
+**SLOs at risk:** [from get_environment_health]
 
 ### On-call handoff
 
