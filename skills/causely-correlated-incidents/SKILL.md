@@ -6,7 +6,7 @@ description: >
 
 # Causely Correlated Incidents Skill
 
-Read `references/complete-investigation.md` for the full 25-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
 
@@ -16,7 +16,7 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs befo
 
 | Tool | Use when | What it returns |
 |---|---|---|
-| `get_root_causes(active_only=true)` | All active issues — primary correlation tool | All RCs with `impact_service_graph` edges |
+| `get_root_causes(active_only=true)` | All active issues — primary correlation tool. **>10 results truncate detail** — use narrower filters. | All RCs with `impact_service_graph` edges |
 | `get_incident_impact(root_cause_id=)` | Responsibility + business context for a specific root cause | Responsible entity, impacted services, team/product/customer context |
 | `get_symptoms()` | Full signal scan — best first step | All active symptoms, no IDs needed |
 | `get_service_summary(service=)` | Per-service health when name known | Full picture for one service |

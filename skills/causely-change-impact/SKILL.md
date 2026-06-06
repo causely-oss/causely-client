@@ -6,7 +6,7 @@ description: >
 
 # Causely Change Impact Skill
 
-Read `references/complete-investigation.md` for the full 25-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
 
@@ -22,7 +22,7 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs befo
 | `get_incident_impact(root_cause_id=)` | Deep investigation when regression detected — who's responsible, what's impacted | Responsible service + business context + blast radius |
 | `name_lookup` → `get_events(entity_id=)` | Find the deploy event / correlate changes | Lifecycle events with timestamps |
 | `name_lookup` → `get_config(entity_id=)` | Inspect config drift | Raw config files |
-| `name_lookup` → `get_metrics(entity_ids=, metrics=, window_minutes=)` | Custom metric comparison over time window | Time-series data |
+| `name_lookup` → `get_metrics(entity_ids=, metrics=, window_minutes=)` | Custom metric comparison over time window | Time-series or aggregated data |
 
 ---
 
@@ -46,7 +46,6 @@ fleet_reliability_delta(team="<team>" or namespace="<ns>")  ← 1 call
 **Quick post-deploy health check (alternative):**
 ```
 get_service_summary(service="<service>")                   ← 1 call
-  → full picture including recent events (shows the deploy)
 ```
 
 ---
