@@ -6,56 +6,36 @@ description: >
 
 # Causely K8s Investigation Skill
 
-Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
 
-Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs. Use `name_mention_type` to narrow: `"Entity"` for pods/containers, `"Namespace"` for namespaces, `"Cluster"` for clusters.
+Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to narrow: `"Entity"` for pods/containers, `"Namespace"` for namespaces, `"Cluster"` for clusters.
 
 ---
 
-## Core tools for K8s investigation
+## Core tools
 
 | Tool | Use when | What it returns |
 |---|---|---|
-| `get_service_summary(service=)` | Service-level health check — resolves name automatically | Status + symptoms + RCs + SLOs + metrics + deps + events + errors |
-| `get_environment_health(namespaces=)` | Namespace-level health sweep | Status + root causes for that namespace |
-| `get_symptoms()` | All active symptoms — includes crash signals, OOM kills, pod failures | Full signal picture, no IDs needed |
-| `get_incident_impact(root_cause_id=)` | Deep investigation for a known root cause | Responsible entity + impacted services + team/product/customer |
-| `name_lookup` → `get_entity_health(entity_id=)` | Non-service entity health (pods, nodes, DBs, containers) | Symptoms, RCs, events, logs, metrics |
-| `name_lookup` → `get_events(entity_id=)` | Lifecycle events (restarts, scaling, scheduling) | OOMKill, CrashLoopBackOff, eviction events |
-| `name_lookup` → `get_config(entity_id=)` | Inspect K8s manifests and resource specs | Deployment spec, resource limits, HPA config |
-| `name_lookup` → `get_metrics(entity_ids=, metrics=)` | Container/pod resource utilisation. Use `entity_aggregate` for fleet averages. | CPU, memory, network I/O |
-| `name_lookup` → `get_logs(entity_id=)` | Live container/pod logs | Real-time log stream |
+| `get_service_summary(service=)` | Service-level health check | Status + symptoms + RCs + metrics + deps + events |
+| `get_environment_health(namespaces=)` | Namespace-level sweep | Status + root causes |
+| `get_symptoms()` | All active symptoms — crash signals, OOM kills, pod failures | Full signal picture, no IDs needed |
+| `get_incident_impact(root_cause_id=)` | Deep investigation for a known root cause | Responsible entity + business context |
+| `name_lookup` → `get_entity_health(entity_id=)` | Non-service entity health (pods, nodes, containers) | Symptoms, RCs, events, logs, metrics |
+| `name_lookup` → `get_events(entity_id=)` | Lifecycle events | OOMKill, CrashLoopBackOff, eviction |
+| `name_lookup` → `get_config(entity_id=)` | K8s manifests | Resource limits, HPA config |
+| `name_lookup` → `get_metrics(entity_ids=, metrics=)` | Resource utilisation. Use `entity_aggregate` for fleet averages. | CPU, memory, network I/O |
+| `name_lookup` → `get_potential_diagnoses(entity_id=)` | What root causes could this entity have? (causality hypotheses) | Active + causality-only diagnoses |
 
 ---
 
 ## Decision tree
 
-**Service name known:**
-```
-get_service_summary(service="<namespace/service>")          ← 1 call, resolves name
-```
-
-**Pod/container-level detail:**
-```
-name_lookup(name_mention="<pod-name>", name_mention_type="Entity")  ← 1 call
-get_entity_health(entity_id=<id>)                                    ← 1 call
-```
-
-**Why did my pod restart?**
-```
-name_lookup(name_mention="<pod-name>", name_mention_type="Entity")  ← 1 call
-get_events(entity_id=<id>, severity_filter=WARNING)                  ← 1 call
-```
-
-**Namespace sweep (no service name):**
-```
-get_environment_health(namespaces=["<namespace>"])                    ← 1 call
-```
-
-**Average CPU across all pods in a namespace:**
-```
-name_lookup → get_metrics(entity_ids=[...], metrics=["cpu_usage_cores"], window_minutes=30, time_aggregate="mean", entity_aggregate="mean")
-```
+- **Service name known** → `get_service_summary(service=)`
+- **Pod/container detail** → `name_lookup` → `get_entity_health(entity_id=)`
+- **Why did my pod restart?** → `name_lookup` → `get_events(entity_id=, severity_filter=WARNING)`
+- **Namespace sweep** → `get_environment_health(namespaces=["<ns>"])`
+- **Average CPU across pods** → `get_metrics(entity_ids=, metrics=["cpu_usage_cores"], entity_aggregate="mean")`
+- **What could be wrong with this entity?** → `name_lookup` → `get_potential_diagnoses(entity_id=)`
 
 ---
 
@@ -63,11 +43,10 @@ name_lookup → get_metrics(entity_ids=[...], metrics=["cpu_usage_cores"], windo
 
 ### 🔴 / 🟡 / 🟢 [Service/Entity] — [Status]
 
-**Root cause (infra layer):** [name + entity + portal link]
+**Root cause:** [name + portal link]
 **Responsible:** [from get_incident_impact or causely.ai/team label]
 **Evidence:** [from description field]
 **Resource state:** [from get_metrics if called]
 **Recent events:** [from get_events if called]
-**Blast radius:** [from impacted_services]
 **Recommended actions:** [from remediation + k8s steps]
 **Links:** [portal links]

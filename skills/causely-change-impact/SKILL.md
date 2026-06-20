@@ -6,9 +6,9 @@ description: >
 
 # Causely Change Impact Skill
 
-Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
 
-Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
+Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 ---
 
@@ -16,37 +16,23 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs befo
 
 | Tool | Use when | What it returns |
 |---|---|---|
-| `reliability_delta(service=)` | Metric regression check for one service | Before/after avg+max for CPU, memory, latency, error rate + verdict |
-| `fleet_reliability_delta(team= or namespace= or services=)` | Batch regression check across multiple services | Summary table with per-service verdicts |
-| `get_service_summary(service=)` | Post-deploy health check with full context | Status + symptoms + root causes + SLOs + metrics + deps + events |
-| `get_incident_impact(root_cause_id=)` | Deep investigation when regression detected — who's responsible, what's impacted | Responsible service + business context + blast radius |
-| `name_lookup` → `get_events(entity_id=)` | Find the deploy event / correlate changes | Lifecycle events with timestamps |
+| `reliability_delta(service=)` | Metric regression check for one service | Before/after metric comparison + verdict |
+| `fleet_reliability_delta(team= or namespace= or services=)` | Batch regression check across services | Per-service verdicts |
+| `get_service_summary(service=)` | Post-deploy health check with full context | Status + symptoms + RCs + SLOs + metrics + deps + events |
+| `get_incident_impact(root_cause_id=)` | Deep investigation when regression detected | Responsible service + business context + blast radius |
+| `name_lookup` → `get_events(entity_id=)` | Find the deploy event | Lifecycle events with timestamps |
 | `name_lookup` → `get_config(entity_id=)` | Inspect config drift | Raw config files |
-| `name_lookup` → `get_metrics(entity_ids=, metrics=, window_minutes=)` | Custom metric comparison over time window | Time-series or aggregated data |
+| `name_lookup` → `get_metrics(entity_ids=, metrics=, window_minutes=)` | Custom metric comparison | Time-series or aggregated data |
 
 ---
 
 ## Decision tree
 
-**Single-service post-deploy check (recommended):**
-```
-reliability_delta(service="<service>")                    ← 1 call
-  → verdict: PASS / WARNING / REGRESSION / WAIT
-  → if REGRESSION → get_incident_impact(root_cause_id=) for responsibility + impact
-  → if PASS → deploy is clean
-```
+**Single-service:** `reliability_delta(service=)` → if REGRESSION: `get_incident_impact(root_cause_id=)`
 
-**Fleet-wide post-deploy validation:**
-```
-fleet_reliability_delta(team="<team>" or namespace="<ns>")  ← 1 call
-  → per-service verdicts
-  → get_incident_impact only for REGRESSION services
-```
+**Fleet-wide:** `fleet_reliability_delta(team= or namespace=)` → `get_incident_impact` for REGRESSION services
 
-**Quick post-deploy health check (alternative):**
-```
-get_service_summary(service="<service>")                   ← 1 call
-```
+**Quick health check:** `get_service_summary(service=)`
 
 ---
 
@@ -54,11 +40,8 @@ get_service_summary(service="<service>")                   ← 1 call
 
 ### 🚀 Deployment validation report
 
-**Service:** [name] · **Deploy time:** [from reliability_delta] · **Verdict:** ✅ Safe / ⚠️ Monitor / 🔴 Rollback recommended / ⏳ Too early
-
+**Service:** [name] · **Verdict:** ✅ Safe / ⚠️ Monitor / 🔴 Rollback recommended / ⏳ Too early
 **Metric deltas:** [from reliability_delta]
-**New root causes since deploy:** [name + started_at, or "None"]
-**Responsible:** [from get_incident_impact responsible_context]
+**Responsible:** [from get_incident_impact]
 **Blast radius:** [from impacted_services]
-**Recommended actions:** [from remediation; rollback if 🔴]
 **Links:** [portal links]

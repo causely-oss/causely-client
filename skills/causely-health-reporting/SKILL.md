@@ -6,59 +6,36 @@ description: >
 
 # Causely Health Reporting Skill
 
-Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
 
-Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
+Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 ---
 
-## Core tools for health reporting
+## Core tools
 
 | Tool | Use when | What it returns |
 |---|---|---|
-| `get_service_summary(service=)` | **Primary tool for single-service health by name.** Resolves name automatically. | Status + symptoms + RCs + SLOs + metrics + deps + slow queries + events + errors |
-| `get_environment_health()` | Global or scoped health overview. **Also returns at-risk SLOs** — use for system-wide SLO status. | Overall status + active root causes + at-risk SLOs + remediation |
-| `get_root_causes(active_only=true)` | All active issues with evidence | Structured JSON per RC (>10 results truncate detail — use filters) |
-| `team_health(team=)` | Team-scoped standup. Follow up with `get_incident_impact` for degraded services. | Degraded/critical first, healthy grouped at end |
-| `get_symptoms()` | **All active symptoms across every entity** — no IDs needed | Full signal picture |
-| `name_lookup` → `get_slo(entity_ids=)` | SLO error budget and burn rate for specific services | Per-SLO: budget %, burn rate, at-risk/violated |
-| `get_entity_health(entity_id=)` | Non-service entity health (DBs, pods, queues) | Symptoms, RCs, events, logs, metrics |
+| `get_service_summary(service=)` | **Primary single-service health.** Resolves name automatically. | Status + symptoms + RCs + SLOs + metrics + deps + events + errors |
+| `get_environment_health()` | Global or scoped overview. **Returns at-risk SLOs.** | Overall status + root causes + at-risk SLOs |
+| `get_root_causes(active_only=true)` | All active issues with evidence | Structured JSON per RC |
+| `team_health(team=)` | Team-scoped standup | Degraded first, healthy grouped at end |
+| `get_symptoms()` | All active symptoms — no IDs needed | Full signal picture |
+| `rank_entities(entity_type=, mode=)` | "Which services have the most dependencies/dependents?" | Ranked list, single SQL query |
+| `name_lookup` → `get_slo(entity_ids=)` | SLO for specific services | Per-SLO: budget %, burn rate |
+| `get_entity_health(entity_id=)` | Non-service entity health | Symptoms, RCs, events, logs, metrics |
 
 ---
 
 ## Decision tree
 
-**"Is X healthy?" → `get_service_summary` (1 call)**
-```
-get_service_summary(service="<name>")
-```
-
-**Morning standup / system sweep:**
-```
-get_environment_health()                                  ← 1 call, includes at-risk SLOs
-```
-
-**Namespace/cluster/product-scoped health:**
-```
-get_environment_health(namespaces=["otel-demo"])           ← 1 call
-```
-
-**Team standup:**
-```
-team_health(team="<team>")                                 ← 1 call
-  → for degraded services: get_incident_impact(root_cause_id=) for responsibility
-```
-
-**SLO-focused report:**
-```
-get_environment_health()                                   ← 1 call, returns at-risk SLOs
-  → or for specific services: name_lookup → get_slo(entity_ids=, only_at_risk=true)
-```
-
-**Weekly report / trend analysis:**
-```
-get_root_causes(active_only=false, lookback_hours=168)     ← 1 call
-```
+- **"Is X healthy?"** → `get_service_summary(service=)`
+- **Morning standup** → `get_environment_health()`
+- **Namespace/cluster scoped** → `get_environment_health(namespaces=)` or `get_environment_health(clusters=)`
+- **Team standup** → `team_health(team=)` → `get_incident_impact` for degraded services
+- **SLO report** → `get_environment_health()`
+- **"Which services are most critical?"** → `rank_entities(entity_type="Service", mode=dependents)`
+- **Weekly trends** → `get_root_causes(active_only=false, lookback_hours=168)`
 
 ---
 
@@ -68,14 +45,14 @@ get_root_causes(active_only=false, lookback_hours=168)     ← 1 call
 
 **🟢 / 🟡 / 🔴 System health: [status]** — *[N] active root causes*
 
-| Service | Root cause | Severity | Since | Evidence | Customer impact | Owner |
-|---|---|---|---|---|---|---|
+| Service | Root cause | Severity | Since | Evidence | Owner |
+|---|---|---|---|---|---|
 | [from response] |
 
 **SLOs at risk:** [from get_environment_health]
 
 ### On-call handoff
 
-🔴 **Active now:** [severity · service · root cause · started_at]
-🟡 **SLOs burning:** [services with burn rate > 1.0]
+🔴 **Active now:** [severity · service · root cause]
+🟡 **SLOs burning:** [burn rate > 1.0]
 📋 **Watch list:** [recurring root causes in past 24h]

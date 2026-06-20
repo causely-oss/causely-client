@@ -1,12 +1,12 @@
 ---
 name: causely-mcp
 description: >
-  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, root causes, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 23 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the root cause", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
+  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, root causes, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 28 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the root cause", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
 ---
 
 # Causely MCP Skill
 
-You have access to 23 structured Causely tools. Use as few calls as possible.
+You have access to 28 structured Causely tools. Use as few calls as possible.
 
 Read `references/complete-investigation.md` for the full tool inventory, evidence strategy, owner resolution, and fallback guidance.
 
@@ -18,46 +18,32 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 
 **When a user mentions a name, call `name_lookup` first.** It resolves names to typed objects (Entity, Cluster, Namespace, RootCause, Symptom, EntityType) with IDs for downstream tools.
 
-```
-name_lookup(name_mention="checkout")
-  → Entity → pass id to get_metrics, get_slo, get_topology, get_alerts, get_events, get_config
-  → Entity → pass id to get_root_causes(related_entity_ids=[id])
-  → Entity → pass id to get_incident_impact(entity_id=id)
-```
-
----
-
-## Tool selection: health checks vs investigation
-
-| Question type | Primary tool | Why |
-|---|---|---|
-| "Is X healthy?" / simple health check | `get_service_summary(service=)` | Full picture in 1 call, resolves name automatically |
-| "Is the system healthy?" / global sweep | `get_environment_health()` | Global or scoped overview |
-| "Which SLOs are at risk?" / system-wide SLO | `get_environment_health()` | Returns at-risk SLOs without entity IDs |
-| "What's the impact?" / "Who is responsible?" | `get_incident_impact(root_cause_id=)` | Responsible service + business context |
-| "Full picture of X" | `get_service_summary(service=)` | All-in-one |
-
-**`get_incident_impact` is for incident investigation, not simple health checks.**
-
 ---
 
 ## Tool routing — pick the right tool first time
 
 | User intent | Primary tool |
 |---|---|
-| "Is X healthy?" / single service health | `get_service_summary(service=)` |
-| "What's the impact of this incident?" / "Who owns this?" | `get_incident_impact(root_cause_id= or entity_id= + root_cause_name=)` |
-| "Is the system healthy?" / global sweep | `get_environment_health()` |
+| "Is X healthy?" | `get_service_summary(service=)` |
+| "Is the system healthy?" | `get_environment_health()` |
 | "Which SLOs are at risk?" | `get_environment_health()` |
+| "What's the impact? Who is responsible?" | `get_incident_impact(root_cause_id=)` |
 | "What's breaking right now?" / all signals | `get_symptoms()` (no entity_ids) |
-| "What's breaking?" / all active root causes | `get_root_causes(active_only=true)` |
+| "What's breaking?" / all root causes | `get_root_causes(active_only=true)` |
 | "What's wrong in namespace X?" | `get_environment_health(namespaces=["X"])` |
 | "What alerts are firing?" | `get_alerts(active_only=true)` |
 | "What alerts are firing on X?" | `get_alerts(alert_name_expr="<name>")` |
+| "Which services have the most dependencies?" | `rank_entities(entity_type="Service", mode=dependencies)` |
+| "Which topics have the most consumers?" | `rank_entities(entity_type="Topic", mode=dependents)` |
+| "Most-called endpoints?" | `rank_entities(entity_type="HTTPPath", mode=dependents)` |
 | "Show me metrics for X" | `name_lookup` → `get_metrics(entity_ids=, metrics=)` |
 | "Average CPU across all pods?" | `get_metrics(entity_ids=, metrics=, entity_aggregate="mean")` |
 | "What are X's SLOs?" | `name_lookup` → `get_slo(entity_ids=)` |
 | "What depends on X?" | `name_lookup` → `get_topology(entity_id=, mode=dependents)` |
+| "What could explain this symptom?" | `name_lookup` → `get_signal_potential_diagnoses(entity_id=, signal_name=)` |
+| "What root causes could this entity have?" | `name_lookup` → `get_potential_diagnoses(entity_id=)` |
+| "What signals could this diagnosis cause?" | `name_lookup` → `get_diagnosis_observable_signals(entity_id=, diagnosis_name=)` |
+| "All signals on this entity?" | `name_lookup` → `get_potential_observable_signals(entity_id=)` |
 | "How's the team doing?" | `team_health(team=)` |
 | "Did our deploy break anything?" | `reliability_delta(service=)` |
 | "Post-deploy check across services" | `fleet_reliability_delta(team= or namespace=)` |
@@ -72,81 +58,51 @@ name_lookup(name_mention="checkout")
 
 ---
 
-## Decision tree
-
-**Simple health check → `get_service_summary` (1 call)**
-```
-get_service_summary(service="<name>")
-  → status, symptoms, root causes, SLOs, metrics, deps, events, logs
-```
-
-**Incident investigation → `get_incident_impact` (1 call)**
-```
-get_incident_impact(root_cause_id="<id>")
-  → responsible_entity + responsible_context (team, product, customer, project)
-  → impacted_services + impacted_context
-  → symptoms, remediation, causal_chain
-```
-
-**Incident first response → `get_symptoms` (1 call)**
-```
-get_symptoms()  ← no entity_ids = all active symptoms across every entity
-```
-
-**System sweep → `get_environment_health` (1 call)**
-```
-get_environment_health()
-  → overall status, active root causes, at-risk SLOs
-```
-
----
-
 ## Playbooks
 
 ### 🚨 Incident triage ("what's wrong with X?")
 1. `get_service_summary(service="<name>")` for health check + full context
-2. If degraded and need responsibility/business context: `get_incident_impact(root_cause_id=<from step 1>)`
-3. If description generic AND `has_stored_logs=true` → `get_logs(root_cause_id=, limit=10, severity_filter=ERROR)`
+2. If degraded: `get_incident_impact(root_cause_id=<from step 1>)` for responsibility
+3. If description generic AND `has_stored_logs=true` → `get_logs(root_cause_id=, severity_filter=ERROR)`
 
 ### 🌐 System sweep ("what's broken right now?")
 1. `get_symptoms()` — all active symptoms, no IDs needed
 2. Or `get_environment_health()` — overall status + root causes + SLOs
-3. Or `get_root_causes(active_only=true)` — full structured detail per RC
+3. Or `get_root_causes(active_only=true)` — full detail per RC
 
-### 🔍 "How does Causely work?" / "How did it find this?"
-1. Read `references/how-causely-works.md` — answer directly from it
-2. No MCP tool calls needed unless the user also wants live data
+### 🔍 "How does Causely work?" / hypothesis exploration
+1. Read `references/how-causely-works.md` — answer directly
+2. For live causality model exploration: `name_lookup` → `get_potential_diagnoses(entity_id=)` → `get_diagnosis_observable_signals(entity_id=, diagnosis_name=)`
+3. Reverse: `get_potential_observable_signals(entity_id=)` → `get_signal_potential_diagnoses(entity_id=, signal_name=)`
+
+### 📊 Topology ranking ("which services have the most...")
+1. `rank_entities(entity_type="Service", mode=dependents)` — most-called services
+2. `rank_entities(entity_type="Topic", mode=dependents)` — most-consumed topics
+3. **Do NOT loop `get_topology`** — `rank_entities` is a single SQL query.
 
 ### 🏢 Team standup
-1. `team_health(team="<team>")` — returns degraded services first
-2. For each degraded service: `get_incident_impact` for responsibility + business context
-
-### 📊 Deep dive (metrics, SLOs, topology)
-1. `name_lookup(name_mention="<name>")` → resolve entity ID
-2. `get_metrics(entity_ids=[id], metrics=[...])` for metric data
-3. `get_slo(entity_ids=[id])` for SLO status
-4. `get_topology(entity_id=id, mode=dependents)` for blast radius graph
+1. `team_health(team="<team>")` — degraded services first
+2. For degraded: `get_incident_impact` for responsibility
 
 ### 📈 Fleet-level metrics
 1. `name_lookup` → resolve entity IDs
-2. `get_metrics(entity_ids=[...], metrics=[...], window_minutes=60, time_aggregate="mean", entity_aggregate="mean")` for aggregated fleet values
+2. `get_metrics(entity_ids=[...], metrics=[...], time_aggregate="mean", entity_aggregate="mean")`
 
 ### 🔔 Alert-driven triage
-1. `get_alerts(alert_name_expr="<alert-name>")` — search by name, no entity ID needed
-2. `investigate_alert(alert=<alert_object>)` — one-step: pass the alert, get entity health back
-3. Or for mapped alerts: `get_root_causes(symptom_ids=[...])` to find the diagnosed cause
+1. `get_alerts(alert_name_expr="<alert-name>")` — search by name
+2. `investigate_alert(alert=<alert_object>)` — one-step entity health
+3. For mapped alerts: `get_root_causes(symptom_ids=[...])` for diagnosis
 
 ---
 
 ## Important behaviours
 
 - **`get_service_summary` for health checks, `get_incident_impact` for incident investigation.**
-- **`get_environment_health` for system-wide SLO overview.** Returns at-risk SLOs without requiring entity IDs.
-- **`get_metrics` supports aggregation.** Use `time_aggregate` to reduce a window to one scalar, `entity_aggregate` to collapse across entities. Supports AIModel, MCPTool, ServiceAccess entity types.
-- **`get_root_causes` truncates at >10 results.** Symptoms, causal_chain, and impact_service_graph are omitted. Use `root_cause_id` or narrower filters for full detail.
+- **`rank_entities` for "which services have the most..." questions.** Do NOT loop `get_topology`.
+- **Causality model tools for hypothesis exploration.** `get_potential_diagnoses`, `get_potential_observable_signals`, `get_signal_potential_diagnoses`, `get_diagnosis_observable_signals` explore the causality model — they return theoretical hypotheses, not observed state.
+- **`get_root_causes` truncates at >10 results.** Use narrower filters for full detail.
 - **`get_symptoms()` with no entity_ids is the fastest incident signal scan.**
-- **`investigate_alert` simplifies alert triage.** Pass a raw alert object from `get_alerts` to get entity health in one step.
+- **Alert mapping states.** Five values: `mapped_entity_symptom`, `mapped_entity_only`, `unmapped_insufficient_labels`, `unmapped_entity_not_found`, `unmapped` (legacy).
 - **`name_lookup` for name resolution.** Resolve names before calling tools that need entity IDs.
 - **`description` is pre-synthesised evidence.** Only call `get_logs` if description is generic AND `has_stored_logs=true`.
-- **Alert mapping states.** Use `"mapped_entity_symptom"` and `"unmapped"` in `mapping_state_filters`.
 - **Surface portal links** from every response.
