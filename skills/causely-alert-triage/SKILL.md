@@ -6,20 +6,20 @@ description: >
 
 # Causely Alert Triage Skill
 
-Read `references/complete-investigation.md` for the full 23-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
 
-Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs before calling tools that require entity IDs.
+Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 ---
 
-## Core tools for alert-driven triage
+## Core tools
 
 | Tool | Use when | What it returns |
 |---|---|---|
 | `get_alerts(alert_name_expr=)` | **Search alerts by name — no entity IDs needed.** | Alert name, symptom mapping, severity, count, timestamps |
-| `investigate_alert(alert=)` | **One-step alert investigation.** Pass raw alert from `get_alerts`, get entity health back. | Entity health + original alert context |
-| `get_root_causes(symptom_ids=)` | Find diagnosed cause behind a mapped alert | Root causes with evidence, blast radius, remediation |
-| `get_incident_impact(root_cause_id=)` | Responsibility + business context for a root cause | Responsible entity + team/product/customer |
+| `investigate_alert(alert=)` | **One-step alert → entity health.** | Entity health + alert context |
+| `get_root_causes(symptom_ids=)` | Find diagnosed cause behind a mapped alert | Root causes with evidence, remediation |
+| `get_incident_impact(root_cause_id=)` | Responsibility + business context | Responsible entity + team/product/customer |
 | `get_service_summary(service=)` | Full health check when service name is known | All-in-one |
 | `get_symptoms()` | All active symptoms, no IDs needed | Full signal picture |
 
@@ -27,40 +27,35 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs befo
 
 ## Decision tree
 
-**Alert received — search by alert name (recommended):**
+**Alert received — search by name:**
 ```
-get_alerts(alert_name_expr="<alert-name>", active_only=true)   ← 1 call
-  → if mapped (mapping_state="mapped_entity_symptom"):
-       → investigate_alert(alert=<alert_object>)                ← 1 call
-       → or get_root_causes(symptom_ids=[...]) for diagnosis
-       → get_incident_impact(root_cause_id=) for responsibility
-  → if unmapped: surface unmapped state to user
-```
-
-**Alert received — service name known:**
-```
-get_service_summary(service="<service>")                       ← 1 call
+get_alerts(alert_name_expr="<alert-name>", active_only=true)
+  → mapped (mapped_entity_symptom): investigate_alert(alert=) or get_root_causes(symptom_ids=)
+  → mapped_entity_only: entity found but no schema symptom
+  → unmapped_insufficient_labels: alert lacks entity-identifying labels
+  → unmapped_entity_not_found: entity no longer exists (pod deleted?)
+  → unmapped: legacy state
 ```
 
-**Alert noise audit:**
-```
-get_alerts(active_only=true, mapping_state_filters=["unmapped"])  ← 1 call
-```
+**Alert received — service name known:** `get_service_summary(service=)`
 
-**Multiple alerts firing at once:**
-```
-get_symptoms()                                              ← 1 call, all signals
-  → or get_root_causes(active_only=true) to check shared origin
-```
+**Alert noise audit:** `get_alerts(mapping_state_filters=["unmapped_insufficient_labels","unmapped_entity_not_found","unmapped"])`
+
+**Multiple alerts:** `get_symptoms()` or `get_root_causes(active_only=true)` to check shared origin
 
 ---
 
-## Mapping states
+## Alert mapping states
 
-- `"mapped_entity_symptom"` — Causely has mapped to a named symptom
-- `"unmapped"` — not incorporated; for unmapped alerts, do not infer entities or call other tools
+| Value | Meaning | Action |
+|---|---|---|
+| `mapped_entity_symptom` | Mapped to a schema symptom on an entity | Follow `symptom_name` → `get_root_causes(symptom_ids=)` |
+| `mapped_entity_only` | Entity found but no schema symptom matched | Check `get_entity_health(entity_id=)` |
+| `unmapped_insufficient_labels` | Alert lacks entity-identifying labels | Surface to user — Causely can't determine target |
+| `unmapped_entity_not_found` | Entity-identifying labels present but entity gone | Likely pod crashed/deleted |
+| `unmapped` | Legacy state | Treat as unmapped |
 
-**`alert_state_filters`** (e.g. `["firing","resolved"]`) overrides `active_only`.
+For unmapped alerts: do not infer entities or call other tools — surface the unmapped state directly.
 
 ---
 
@@ -69,9 +64,7 @@ get_symptoms()                                              ← 1 call, all sign
 ### 🔔 Alert triage: [alert name]
 
 **Alert:** [alert_name] · **Service:** [entity name] · **Status:** [firing/resolved]
-**Causely mapping:** ✅ Mapped to "[symptom_name]" / ❌ Unmapped
+**Mapping:** ✅ `mapped_entity_symptom` / ⚠️ `mapped_entity_only` / ❌ unmapped ([reason])
 **Root cause:** [from investigate_alert or get_root_causes]
-**Responsible:** [from get_incident_impact responsible_context]
-**Blast radius:** [from impacted_services]
-**Recommended actions:** [from remediation]
+**Responsible:** [from get_incident_impact]
 **Links:** [portal links]
