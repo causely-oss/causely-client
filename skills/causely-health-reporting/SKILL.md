@@ -6,7 +6,7 @@ description: >
 
 # Causely Health Reporting Skill
 
-Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 29-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
@@ -16,14 +16,13 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 | Tool | Use when | What it returns |
 |---|---|---|
-| `get_service_summary(service=)` | **Primary single-service health.** Resolves name automatically. | Status + symptoms + RCs + SLOs + metrics + deps + events + errors |
-| `get_environment_health()` | Global or scoped overview. **Returns at-risk SLOs.** | Overall status + root causes + at-risk SLOs |
-| `get_root_causes(active_only=true)` | All active issues with evidence | Structured JSON per RC |
+| `get_service_summary(service=)` | **Primary single-service health.** | Status + symptoms + RCs + SLOs + metrics + deps + events + errors |
+| `get_environment_health()` | Global or scoped overview. **Does NOT report SLOs.** | Overall status + root causes |
+| `get_slo()` | **All SLO questions.** Fleet-wide with `cluster_names`/`namespace_names` or per-service with `entity_ids`. | Error budget, burn rate, at-risk, violated |
+| `get_root_causes(active_only=true)` | All active issues — lightweight summary | Structured JSON per RC; follow up with `get_root_cause_details` for evidence |
 | `team_health(team=)` | Team-scoped standup | Degraded first, healthy grouped at end |
 | `get_symptoms()` | All active symptoms — no IDs needed | Full signal picture |
-| `rank_entities(entity_type=, mode=)` | "Which services have the most dependencies/dependents?" | Ranked list, single SQL query |
-| `name_lookup` → `get_slo(entity_ids=)` | SLO for specific services | Per-SLO: budget %, burn rate |
-| `get_entity_health(entity_id=)` | Non-service entity health | Symptoms, RCs, events, logs, metrics |
+| `rank_entities(entity_type=, mode=)` | "Which services are most critical?" | Ranked list |
 
 ---
 
@@ -31,9 +30,10 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 - **"Is X healthy?"** → `get_service_summary(service=)`
 - **Morning standup** → `get_environment_health()`
-- **Namespace/cluster scoped** → `get_environment_health(namespaces=)` or `get_environment_health(clusters=)`
-- **Team standup** → `team_health(team=)` → `get_incident_impact` for degraded services
-- **SLO report** → `get_environment_health()`
+- **"Which SLOs are at risk?"** → `get_slo(only_at_risk=true)`
+- **"SLOs violated in robot-shop?"** → `get_slo(namespace_names=["robot-shop"], only_violated=true)`
+- **Namespace scoped** → `get_environment_health(namespaces=)`
+- **Team standup** → `team_health(team=)` → `get_incident_impact` for degraded
 - **"Which services are most critical?"** → `rank_entities(entity_type="Service", mode=dependents)`
 - **Weekly trends** → `get_root_causes(active_only=false, lookback_hours=168)`
 
@@ -47,12 +47,11 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 | Service | Root cause | Severity | Since | Evidence | Owner |
 |---|---|---|---|---|---|
-| [from response] |
 
-**SLOs at risk:** [from get_environment_health]
+**SLOs at risk:** [from `get_slo(only_at_risk=true)`]
 
 ### On-call handoff
 
 🔴 **Active now:** [severity · service · root cause]
-🟡 **SLOs burning:** [burn rate > 1.0]
+🟡 **SLOs burning:** [from `get_slo(only_at_risk=true)` — burn rate > 1.0]
 📋 **Watch list:** [recurring root causes in past 24h]

@@ -6,7 +6,7 @@ description: >
 
 # Causely K8s Investigation Skill
 
-Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 29-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to narrow: `"Entity"` for pods/containers, `"Namespace"` for namespaces, `"Cluster"` for clusters.
 
@@ -14,17 +14,18 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 
 ## Core tools
 
-| Tool | Use when | What it returns |
-|---|---|---|
-| `get_service_summary(service=)` | Service-level health check | Status + symptoms + RCs + metrics + deps + events |
-| `get_environment_health(namespaces=)` | Namespace-level sweep | Status + root causes |
-| `get_symptoms()` | All active symptoms — crash signals, OOM kills, pod failures | Full signal picture, no IDs needed |
-| `get_incident_impact(root_cause_id=)` | Deep investigation for a known root cause | Responsible entity + business context |
-| `name_lookup` → `get_entity_health(entity_id=)` | Non-service entity health (pods, nodes, containers) | Symptoms, RCs, events, logs, metrics |
-| `name_lookup` → `get_events(entity_id=)` | Lifecycle events | OOMKill, CrashLoopBackOff, eviction |
-| `name_lookup` → `get_config(entity_id=)` | K8s manifests | Resource limits, HPA config |
-| `name_lookup` → `get_metrics(entity_ids=, metrics=)` | Resource utilisation. Use `entity_aggregate` for fleet averages. | CPU, memory, network I/O |
-| `name_lookup` → `get_potential_diagnoses(entity_id=)` | What root causes could this entity have? (causality hypotheses) | Active + causality-only diagnoses |
+| Tool | Use when |
+|---|---|
+| `get_service_summary(service=)` | Service-level health check — resolves name |
+| `get_environment_health(namespaces=)` | Namespace-level sweep |
+| `get_symptoms()` | All active symptoms — crash signals, OOM kills, pod failures |
+| `get_root_cause_details(root_cause_id=)` | Full evidence for a root cause |
+| `get_incident_impact(root_cause_id=)` | Responsibility + business context |
+| `name_lookup` → `get_entity_health(entity_id=)` | Pod/node/container health |
+| `name_lookup` → `get_events(entity_id=)` | OOMKill, CrashLoopBackOff, eviction events |
+| `name_lookup` → `get_config(entity_id=)` | Resource limits, HPA config |
+| `name_lookup` → `get_metrics(entity_ids=, metrics=)` | CPU, memory, network I/O |
+| `name_lookup` → `get_potential_diagnoses(entity_id=)` | Causality hypotheses |
 
 ---
 
@@ -34,8 +35,9 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 - **Pod/container detail** → `name_lookup` → `get_entity_health(entity_id=)`
 - **Why did my pod restart?** → `name_lookup` → `get_events(entity_id=, severity_filter=WARNING)`
 - **Namespace sweep** → `get_environment_health(namespaces=["<ns>"])`
-- **Average CPU across pods** → `get_metrics(entity_ids=, metrics=["cpu_usage_cores"], entity_aggregate="mean")`
-- **What could be wrong with this entity?** → `name_lookup` → `get_potential_diagnoses(entity_id=)`
+- **Full RC evidence** → `get_root_cause_details(root_cause_id=)` → read causal_chain
+- **What could be wrong with this entity?** → `name_lookup` → `get_potential_diagnoses(entity_id=)` → compare active vs causality-only hypotheses
+- **What could explain this symptom?** → `name_lookup` → `get_signal_potential_diagnoses(entity_id=, signal_name=)`
 
 ---
 
@@ -43,10 +45,13 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 
 ### 🔴 / 🟡 / 🟢 [Service/Entity] — [Status]
 
-**Root cause:** [name + portal link]
-**Responsible:** [from get_incident_impact or causely.ai/team label]
-**Evidence:** [from description field]
-**Resource state:** [from get_metrics if called]
-**Recent events:** [from get_events if called]
-**Recommended actions:** [from remediation + k8s steps]
-**Links:** [portal links]
+**Root cause:** [name + entity + portal link]
+**Evidence:** [from description field; from get_root_cause_details causal_chain for WHY Causely diagnosed this]
+**Resource state:** [from get_metrics if called — CPU/memory usage vs limits]
+**Configuration:** [from get_config if called — relevant resource limits, HPA settings]
+**Recent events:** [from get_events if called — OOMKill, restarts, scaling events with timestamps]
+**Blast radius:** [from get_root_cause_details impact_service_graph or impacted_services]
+**Customer impact:** [from impacted_customers or get_incident_impact impacted_context]
+**Responsible:** [from get_incident_impact responsible_context or causely.ai/team label]
+**Recommended actions:** [from remediation field + k8s-specific steps: adjust resource limits, cordon/drain node, review HPA, check liveness probes]
+**Links:** [portal links from response]

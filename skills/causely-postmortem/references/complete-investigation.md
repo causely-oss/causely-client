@@ -2,132 +2,189 @@
 
 ## Efficiency-first principle
 
-**`get_service_summary` or `get_environment_health` for health checks.** `get_service_summary(service=)` resolves names automatically and returns symptoms, root causes, SLOs, metrics, deps, events, and logs in one call.
+**`get_service_summary` or `get_environment_health` for health checks.** `get_service_summary(service=)` resolves names automatically and returns symptoms, root causes, SLOs, metrics, deps, events, and logs in one call. `get_environment_health` gives overall status and root causes but does NOT include SLO state.
 
-**`get_incident_impact` is for incident investigation, not health checks.** Use when health is already degraded and you need responsibility and business context.
+**`get_root_causes` returns lightweight summaries.** It does NOT include symptoms, causal_chain, impact_service_graph, exceptions, or events. Follow up with `get_root_cause_details(root_cause_id=)` for full evidence on a specific root cause.
+
+**`get_slo` for all SLO questions.** Supports fleet-wide queries without entity_ids using `cluster_names` and `namespace_names` filters.
 
 **`description` is Causely's pre-synthesised evidence.** Do not call `get_logs` to regenerate it.
 
 ---
 
-## Complete tool inventory (28 tools)
+## Complete tool inventory (29 tools)
 
 ### Discovery & name resolution
 | Tool | Use when | Key params |
 |---|---|---|
-| `name_lookup` | **Call first when a user mentions a name.** Resolves to typed objects with IDs. | `name_mention`, `name_mention_type`, `entity_types` |
+| `name_lookup` | **Call first when a user mentions a name.** | `name_mention`, `name_mention_type`, `entity_types` |
 | `get_label_values` | Enumerate teams, products, clusters, namespaces. | `label_key`, `query` |
-| `get_integration_status` | Check scraper/integration coverage per cluster. | `cluster_names` |
-| `rank_entities` | **Bulk ranking by dependency/dependent count.** Single SQL query — do NOT loop `get_topology`. | `entity_type`, `mode` (dependencies/dependents), `limit`, scope filters |
+| `get_integration_status` | Check scraper/integration coverage. | `cluster_names` |
+| `rank_entities` | **Bulk ranking by dependency/dependent count.** Do NOT loop `get_topology`. | `entity_type`, `mode`, `limit`, scope filters |
 
 ### Health & investigation
 | Tool | Use when | Key params |
 |---|---|---|
-| `get_service_summary` | **Primary tool for single-service health by name.** | `service`, `lookback_hours` |
-| `get_environment_health` | Global or scoped health overview. Also returns at-risk SLOs. | `namespaces`, `clusters`, `services`, `products`, `active_only`, `lookback_hours` |
-| `get_incident_impact` | Deep incident investigation — responsibility + business context. **Not for health checks.** | `root_cause_id`, `root_cause_name`, `entity_id`, `start_time/end_time` |
+| `get_service_summary` | **Primary single-service health by name.** Resolves names automatically. | `service`, `lookback_hours` |
+| `get_environment_health` | Global or scoped health overview. **Does NOT report SLO state.** | `namespaces`, `clusters`, `services`, `products`, `active_only`, `lookback_hours` |
+| `get_incident_impact` | Incident investigation — responsibility + business context. **Not for health checks.** | `root_cause_id`, `root_cause_name`, `entity_id` |
 | `get_entity_health` | Health for any entity by ID. | `entity_id`, `lookback_hours` |
 | `team_health` | All services owned by a team. | `team` |
 
 ### Diagnosis
 | Tool | Use when | Key params |
 |---|---|---|
-| `get_root_causes` | Active root causes with impact graphs. >10 results truncate detail. | `active_only`, `related_entity_ids`, `cluster_names`, `namespace_names`, `symptom_ids`, `root_cause_id` |
-| `get_symptoms` | **Best first step in any incident** — no entity_ids needed for all active symptoms. | `entity_ids`, `active_only`, `lookback_hours`, `symptom_name` |
-| `get_alerts` | Alert history, mapped/unmapped status. Supports `alert_name_expr` search. | `alert_name_expr`, `mapping_state_filters`, `alert_state_filters` |
+| `get_root_causes` | All active root causes — **lightweight summary only.** Does NOT include causal_chain, symptoms, or impact_service_graph. | `active_only`, `related_entity_ids`, `cluster_names`, `namespace_names`, `symptom_ids`, `root_cause_id` |
+| `get_root_cause_details` | **Full evidence for a single root cause.** Returns symptoms, causal_chain, impact_service_graph, exceptions, events. Follow-up to `get_root_causes`. | `root_cause_id` |
+| `get_symptoms` | **Best first step in any incident** — no entity_ids needed. | `entity_ids`, `active_only`, `lookback_hours`, `symptom_name` |
+| `get_alerts` | Alert history, mapped/unmapped. `alert_name_expr` for name search. | `alert_name_expr`, `mapping_state_filters`, `alert_state_filters` |
 | `investigate_alert` | One-step alert → entity health. | `alert`, `lookback_hours` |
 | `get_logs` | Live entity logs OR stored evidence logs. | `entity_id` XOR `root_cause_id` |
-| `get_events` | Lifecycle events (deploys, restarts, scaling). | `entity_id` |
+| `get_events` | Lifecycle events. | `entity_id` |
 | `get_slow_queries` | DB slow query analysis. | `entity_ids` |
 
 ### Causality model / hypothesis exploration
 | Tool | Use when | Key params |
 |---|---|---|
-| `get_potential_diagnoses` | Causality-model-inferred diagnosis hypotheses for an entity (active + causality-only). | `entity_id` |
-| `get_potential_observable_signals` | All observable signals on an entity (active + inactive + causality potential). | `entity_id`, `signal_types` |
-| `get_signal_potential_diagnoses` | Reverse lookup: which diagnoses could explain a specific signal. | `entity_id`, `signal_name`, `signal_type` |
+| `get_potential_diagnoses` | Causality-model-inferred diagnosis hypotheses (active + causality-only). | `entity_id` |
+| `get_potential_observable_signals` | All signals on an entity (active + inactive + causality potential). | `entity_id`, `signal_types` |
+| `get_signal_potential_diagnoses` | Reverse lookup: which diagnoses explain a signal. | `entity_id`, `signal_name`, `signal_type` |
 | `get_diagnosis_observable_signals` | Causality chain: what signals a diagnosis could cause. | `entity_id`, `diagnosis_name` |
 
 ### Observability data
 | Tool | Use when | Key params |
 |---|---|---|
-| `get_metrics` | Numeric snapshots, time-series, or aggregated fleet-level values. | `entity_ids`, `metrics`, `window_minutes`, `time_aggregate`, `entity_aggregate` |
-| `get_slo` | SLO state, error budget, burn rate. For system-wide, use `get_environment_health`. | `entity_ids`, `only_at_risk`, `only_violated` |
-| `get_config` | Raw config files for an entity. | `entity_id`, `name_contains` |
-| `get_topology` | Dependency/dependent/dataflow graph. **Do NOT loop — use `rank_entities` for rankings.** | `entity_id`, `mode`, `levels` |
+| `get_metrics` | Snapshots, time-series, or aggregated fleet values. | `entity_ids`, `metrics`, `window_minutes`, `time_aggregate`, `entity_aggregate` |
+| `get_slo` | **SLO state, error budget, burn rate.** Fleet-wide without entity_ids using `cluster_names`/`namespace_names`. | `entity_ids`, `cluster_names`, `namespace_names`, `only_at_risk`, `only_violated` |
+| `get_config` | Raw config files. | `entity_id`, `name_contains` |
+| `get_topology` | Dependency/dependent/dataflow graph. **Do NOT loop — use `rank_entities`.** | `entity_id`, `mode`, `levels` |
 
 ### Post-deploy & reliability
 | Tool | Use when | Key params |
 |---|---|---|
-| `reliability_delta` | Single-service pre/post deploy comparison. | `service`, `lookback_hours`, `window_minutes` |
-| `fleet_reliability_delta` | Batch regression check across services. | `team`, `namespace`, `services` |
+| `reliability_delta` | Single-service pre/post deploy comparison. | `service` |
+| `fleet_reliability_delta` | Batch regression check. | `team`, `namespace`, `services` |
 
 ### Reporting & actions
 | Tool | Use when | Key params |
 |---|---|---|
-| `generate_ticket` | Create Jira/GitHub/Linear ticket draft. | `task` |
-| `postmortem` | Generate postmortem for a resolved incident. | `root_cause_id`, `root_cause_name` + `entity_name`, `service` + `incident_start` |
+| `generate_ticket` | Jira/GitHub/Linear ticket draft. | `task` |
+| `postmortem` | Postmortem for a resolved incident. | `root_cause_id`, `root_cause_name` + `entity_name`, `service` + `incident_start` |
 
 ---
 
-## Alert mapping states (get_alerts)
-
-| Value | Meaning |
-|---|---|
-| `mapped_entity_symptom` | Alert mapped to a schema symptom on an entity |
-| `mapped_entity_only` | Entity found but no schema symptom matched |
-| `unmapped_insufficient_labels` | Alert lacks entity-identifying labels |
-| `unmapped_entity_not_found` | Entity-identifying labels present but entity no longer exists |
-| `unmapped` | Legacy state for rows written before the distinction was introduced |
-
----
-
-## Name resolution pattern
+## Name resolution
 
 ```
 name_lookup(name_mention="checkout")
   → Entity → pass id to get_metrics, get_slo, get_topology, get_alerts, get_events, get_config
   → Entity → pass id to get_root_causes(related_entity_ids=[id])
   → Entity → pass id to get_incident_impact(entity_id=id)
-  → Entity → pass id to get_potential_diagnoses(entity_id=id)
+  → Entity → pass id to get_root_cause_details after getting RC ID
+```
+
+---
+
+## Root cause investigation workflow
+
+```
+get_root_causes(active_only=true)           ← lightweight list: id, name, severity, description, remediation
+  → pick the root cause you need
+get_root_cause_details(root_cause_id=)      ← full evidence: symptoms, causal_chain, impact_service_graph, exceptions, events
+  → causal_chain explains WHY Causely identified this as root cause
+  → impact_service_graph shows blast radius
 ```
 
 ---
 
 ## Causality model exploration workflow
 
-For "how does Causely detect this?" or hypothesis exploration:
+These 4 tools explore Causely's causality model — theoretical hypotheses and signal relationships, not just observed state.
+
+**Forward path: entity → diagnoses → signals**
 ```
 name_lookup(name_mention="<entity>") → entity_id
-get_potential_diagnoses(entity_id=) → diagnosis hypotheses (active + causality-only)
-get_diagnosis_observable_signals(entity_id=, diagnosis_name=) → causality chain
-get_potential_observable_signals(entity_id=) → all signals (active + inactive + potential)
-get_signal_potential_diagnoses(entity_id=, signal_name=) → which diagnoses explain a signal
+get_potential_diagnoses(entity_id=)
+  → all diagnosis hypotheses for this entity (active + causality-only)
+  → pick a diagnosis name
+get_diagnosis_observable_signals(entity_id=, diagnosis_name=)
+  → causality chain: what symptoms, events, and SLOs this diagnosis could cause
+  → compare to get_symptoms() to see which are actually active
 ```
+
+**Reverse path: signal → diagnoses**
+```
+get_potential_observable_signals(entity_id=)
+  → all signals on this entity (active + inactive + causality potential)
+  → pick a signal name
+get_signal_potential_diagnoses(entity_id=, signal_name=)
+  → which diagnosis hypotheses could explain this signal
+```
+
+**"How did Causely detect this?"**
+```
+get_root_cause_details(root_cause_id=)
+  → causal_chain: walk edges from leaf symptoms toward root_node_id
+  → edge probabilities show causal confidence (degrade downstream, confirming origin)
+  → this is the OBSERVED causal graph, not the theoretical model
+```
+
+### Causality exploration output format
+
+**Entity:** [name + type]
+
+**Diagnosis hypotheses:**
+| Diagnosis | State | Severity | Description |
+|---|---|---|---|
+| [from get_potential_diagnoses — active or causality-only] |
+
+**Causality chain for [diagnosis]:**
+| Signal | Type | Direction | Probability |
+|---|---|---|---|
+| [from get_diagnosis_observable_signals — chain edges from diagnosis to downstream signals] |
+
+**Reverse lookup for [signal]:**
+| Potential diagnosis | Confidence | Description |
+|---|---|---|
+| [from get_signal_potential_diagnoses — which diagnoses could explain this signal] |
+
+**All observable signals:**
+| Signal | Type | State | Description |
+|---|---|---|---|
+| [from get_potential_observable_signals — active, inactive, or causality potential] |
 
 ---
 
-## Primary decision tree
+## SLO queries
 
-```
-"Is X healthy?" → get_service_summary(service="X")
-"Is the system healthy?" → get_environment_health()
-"What's the impact? Who's responsible?" → get_incident_impact(root_cause_id=)
-"Which services have the most dependencies?" → rank_entities(entity_type="Service", mode=dependencies)
-"What could explain this symptom?" → get_signal_potential_diagnoses(entity_id=, signal_name=)
-"What root causes could this entity have?" → get_potential_diagnoses(entity_id=)
-```
+`get_environment_health` does NOT report SLO state. Use `get_slo`:
 
----
-
-## Evidence: description vs get_logs
-
-Only call `get_logs` when `description` is generic AND `has_stored_logs=true`.
+| Question | Tool call |
+|---|---|
+| "Which SLOs are at risk?" | `get_slo(only_at_risk=true)` |
+| "Which SLOs are violated?" | `get_slo(only_violated=true)` |
+| "SLOs in the robot-shop namespace?" | `get_slo(namespace_names=["robot-shop"])` |
+| "SLOs in chaos1 cluster?" | `get_slo(cluster_names=["chaos1"])` |
+| "SLO for a specific service?" | `name_lookup` → `get_slo(entity_ids=[id])` |
 
 ---
 
 ## Owner resolution
 
-- `causely.ai/team` in entity.labels → that is the owner.
-- `get_incident_impact` returns `responsible_context` with team, product, customer, project.
-- `team_health(team="<partial>")` as fallback.
+- `causely.ai/team` in entity.labels → owner.
+- `get_incident_impact` returns `responsible_context`.
+- `team_health(team=)` as fallback.
+
+---
+
+## Output template
+
+### 🔴 / 🟡 / 🟢 [Service] — [Status]
+
+**Root cause:** [name + entity + portal link from get_root_causes]
+**Evidence:** [from `description` field; from get_root_cause_details causal_chain for WHY; from get_logs if needed]
+**Blast radius:** [from get_root_cause_details impact_service_graph, or impacted_services on summary]
+**Customer impact:** [from `impacted_customers` or get_incident_impact `impacted_context`]
+**Responsible:** [from get_incident_impact `responsible_context` or `causely.ai/team` label]
+**Recommended actions:** [from `remediation` field]
+**Links:** [Causely portal links from response]
