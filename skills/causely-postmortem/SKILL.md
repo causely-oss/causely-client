@@ -6,7 +6,7 @@ description: >
 
 # Causely Postmortem & Ticket Skill
 
-Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 29-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="RootCause"` to find root causes by name.
 
@@ -14,28 +14,53 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="RootC
 
 ## Core tools
 
-| Tool | Use when | What it returns |
-|---|---|---|
-| `postmortem(root_cause_id=)` | Generate full postmortem | Markdown + structured: title, summary, timeline, root cause, blast radius, action items |
-| `generate_ticket(task=)` | Create an engineering ticket draft | Structured JSON: title, description, requirements, acceptance criteria |
-| `get_root_causes(active_only=false, lookback_hours=N)` | Find root cause ID for postmortem | Historical root causes with IDs |
-| `get_incident_impact(root_cause_id=)` | Business context enrichment | Responsible entity + team/product/customer context |
-| `name_lookup(name_mention=, name_mention_type="RootCause")` | Resolve root cause names | Root cause objects with IDs |
+| Tool | Use when |
+|---|---|
+| `postmortem(root_cause_id=)` | Generate full postmortem |
+| `generate_ticket(task=)` | Engineering ticket draft |
+| `get_root_causes(active_only=false, lookback_hours=N)` | Find root cause ID |
+| `get_root_cause_details(root_cause_id=)` | Full evidence to enrich postmortem |
+| `get_incident_impact(root_cause_id=)` | Business context enrichment |
+| `name_lookup(name_mention_type="RootCause")` | Resolve root cause names |
 
 ---
 
 ## Decision tree
 
-- **Root cause ID known** → `postmortem(root_cause_id=)` ← 1 call
+- **Root cause ID known** → `postmortem(root_cause_id=)`
 - **Root cause name known** → `name_lookup(name_mention_type="RootCause")` → `postmortem(root_cause_id=)`
-- **Enrich with business context** → `get_incident_impact(root_cause_id=)`
+- **Need evidence detail** → `get_root_cause_details(root_cause_id=)` for causal_chain + impact_service_graph
+- **Business context** → `get_incident_impact(root_cause_id=)`
 - **Standalone ticket** → `generate_ticket(task=)`
 
 ---
 
 ## Important behaviours
 
-- **Prefer `root_cause_id`** — most reliable lookup path.
-- **Handle ambiguity:** if `postmortem(root_cause_name=)` returns `ambiguity_candidates`, present candidates and ask user to pick.
+- **Prefer `root_cause_id`** — most reliable.
+- **Handle ambiguity:** if `postmortem(root_cause_name=)` returns `ambiguity_candidates`, present and ask user to pick.
+- **`get_root_cause_details` for causal_chain** — explains WHY Causely diagnosed this root cause.
 - **Don't re-investigate:** `postmortem` synthesises from Causely data.
-- **Use `get_incident_impact` for business context** — responsible team, product, customer.
+
+---
+
+## Output format
+
+### 📋 Incident postmortem
+
+[Postmortem markdown from the `postmortem` tool — includes title, summary, timeline, root cause analysis, blast radius, contributing factors, and action items]
+
+**Causal explanation:** [from get_root_cause_details causal_chain — WHY Causely identified this root cause]
+
+**Business context:** [from get_incident_impact — responsible team, impacted products, customers]
+
+---
+
+### 🎫 Remediation tickets
+
+For each action item from the postmortem:
+
+**Title:** [from generate_ticket]
+**Priority:** [inferred from severity]
+**Description:** [from generate_ticket — context + requirements]
+**Acceptance criteria:** [from generate_ticket]

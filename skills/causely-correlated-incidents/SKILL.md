@@ -6,22 +6,22 @@ description: >
 
 # Causely Correlated Incidents Skill
 
-Read `references/complete-investigation.md` for the full 28-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 29-tool inventory and evidence strategy.
 
-Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
+Use `name_lookup(name_mention=)` to resolve names.
 
 ---
 
 ## Core tools
 
-| Tool | Use when | What it returns |
-|---|---|---|
-| `get_root_causes(active_only=true)` | Primary correlation tool. >10 results truncate detail. | All RCs with `impact_service_graph` edges |
-| `get_incident_impact(root_cause_id=)` | Responsibility + business context | Responsible entity, impacted services, team/product/customer |
-| `get_symptoms()` | Full signal scan — best first step | All active symptoms, no IDs needed |
-| `name_lookup` → `get_topology(entity_id=, mode=)` | Full dependency graph for one entity | Nodes + edges |
-| `rank_entities(entity_type=, mode=)` | **Bulk ranking** — "which services have the most dependents?" | Ranked list, single SQL query. Do NOT loop get_topology. |
-| `get_alerts(alert_name_expr=)` | Alert correlation across entities | Firing alerts with mapping state |
+| Tool | Use when |
+|---|---|
+| `get_root_causes(active_only=true)` | Primary correlation tool — lightweight summary |
+| `get_root_cause_details(root_cause_id=)` | Full evidence: causal_chain + impact_service_graph for blast radius |
+| `get_incident_impact(root_cause_id=)` | Responsibility + business context |
+| `get_symptoms()` | Full signal scan — best first step |
+| `name_lookup` → `get_topology(entity_id=, mode=)` | Full dependency graph |
+| `rank_entities(entity_type=, mode=)` | Bulk ranking — do NOT loop get_topology |
 
 ---
 
@@ -29,14 +29,14 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 **Widespread outage:**
 ```
-get_root_causes(active_only=true)                          ← 1 call
-  → shared nodes in impact_service_graphs = correlation origin
-  → get_incident_impact(root_cause_id=) for responsibility
+get_root_causes(active_only=true)                          ← lightweight list
+  → get_root_cause_details(root_cause_id=)                 ← impact_service_graph for blast radius
+  → get_incident_impact(root_cause_id=)                    ← responsibility
 ```
 
 **"Which services are most interconnected?":**
 ```
-rank_entities(entity_type="Service", mode=dependents)      ← 1 call, single SQL
+rank_entities(entity_type="Service", mode=dependents)      ← 1 call
 ```
 
 **Full dependency graph for one service:**
@@ -50,10 +50,14 @@ name_lookup → get_topology(entity_id=, mode=dependents)    ← 2 calls
 
 ### 🔴 Multi-service incident summary
 
-**Affected services:** [from impacted_services]
-**Correlation:** ✅ Correlated / ⚠️ Partial / ❓ Unconfirmed
-**Root cause:** [name + entity + portal link]
-**Responsible:** [from get_incident_impact]
-**Propagation path:** [from impact_service_graph]
-**Customer impact:** [from impacted_context]
-**Links:** [portal links]
+**Affected services:** [from impacted_services across root causes]
+**Correlation:** ✅ Correlated / ⚠️ Partial / ❓ Unconfirmed — [origin entity if known]
+**Root cause:** [name + entity + portal link from get_root_causes]
+**Propagation path:** [from get_root_cause_details impact_service_graph edges]
+**Evidence:** [from description field; from get_root_cause_details causal_chain for WHY]
+**Blast radius:** [from impact_service_graph — total affected services count + names]
+**Customer impact:** [from impacted_customers or get_incident_impact impacted_context]
+**Responsible:** [from get_incident_impact responsible_context]
+**Timeline:** [started_at per root cause, in order]
+**Recommended action:** [from remediation field — single fix that resolves the origin]
+**Links:** [all portal links]
