@@ -1,12 +1,12 @@
 ---
 name: causely-mcp
 description: >
-  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, root causes, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 29 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the root cause", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
+  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, root causes, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 30 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the root cause", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
 ---
 
 # Causely MCP Skill
 
-You have access to 29 structured Causely tools. Use as few calls as possible.
+You have access to 30 structured Causely tools. Use as few calls as possible.
 
 Read `references/complete-investigation.md` for the full tool inventory, evidence strategy, owner resolution, and fallback guidance.
 
@@ -55,6 +55,8 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 | "Create a ticket for this" | `generate_ticket(task=)` |
 | "What pods/DBs/queues are unhealthy?" | `name_lookup` → `get_entity_health(entity_id=)` |
 | "What teams do we have?" | `get_label_values(label_key="causely.ai/team")` |
+| "List all services in namespace X" | `get_entities(entity_types=["Service"], namespace_names=["X"])` |
+| "List all databases in cluster Y" | `get_entities(entity_types=["Database"], cluster_names=["Y"])` |
 | "Show me the config for X" | `name_lookup` → `get_config(entity_id=)` |
 | "Why did X restart?" | `name_lookup` → `get_events(entity_id=)` |
 | "Which DB queries are slow?" | `name_lookup` → `get_slow_queries(entity_ids=)` |

@@ -12,12 +12,13 @@
 
 ---
 
-## Complete tool inventory (29 tools)
+## Complete tool inventory (30 tools)
 
 ### Discovery & name resolution
 | Tool | Use when | Key params |
 |---|---|---|
 | `name_lookup` | **Call first when a user mentions a name.** | `name_mention`, `name_mention_type`, `entity_types` |
+| `get_entities` | List entities by type/cluster/namespace, or look up by exact ID. | `entity_id`, `entity_types`, `cluster_names`, `namespace_names`, `limit` |
 | `get_label_values` | Enumerate teams, products, clusters, namespaces. | `label_key`, `query` |
 | `get_integration_status` | Check scraper/integration coverage. | `cluster_names` |
 | `rank_entities` | **Bulk ranking by dependency/dependent count.** Do NOT loop `get_topology`. | `entity_type`, `mode`, `limit`, scope filters |
