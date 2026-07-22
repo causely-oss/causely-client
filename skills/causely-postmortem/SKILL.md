@@ -6,7 +6,7 @@ description: >
 
 # Causely Postmortem & Ticket Skill
 
-Read `references/complete-investigation.md` for the full 29-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 30-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="RootCause"` to find root causes by name.
 

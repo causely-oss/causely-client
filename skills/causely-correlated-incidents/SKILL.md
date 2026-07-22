@@ -6,7 +6,7 @@ description: >
 
 # Causely Correlated Incidents Skill
 
-Read `references/complete-investigation.md` for the full 29-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 30-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
