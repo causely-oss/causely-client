@@ -1,10 +1,10 @@
-# Causely client tooling
+# Causely Agent Integrations — MCP Skills, Plugins & CLI
 
-This repository bundles **client-side resources** for working with [Causely](https://causely.ai): agent integrations (MCP), a Kubernetes install CLI, and a shell toolkit for the Causely GraphQL API.
+These are the tools that let AI agents query Causely's causal model directly, instead of scanning raw telemetry and guessing. This repository bundles **client-side resources** for working with [Causely](https://causely.ai): agent integrations (MCP), a Kubernetes install CLI, and a shell toolkit for the Causely GraphQL API.
 
 | Area | Path | What it is |
 |------|------|------------|
-| **MCP skills & plugins** | [`mcp/`](mcp/) | Claude (and compatible) **skills** that route work across Causely’s MCP tools, plus **starter configs** for Cursor, Claude, Codex, VS Code Copilot, and OpenCode. |
+| **MCP skills & plugins** | [`mcp/`](mcp/) | Claude (and compatible) **skills** that route work across Causely's MCP tools, plus **starter configs** for Cursor, Claude, Codex, VS Code Copilot, and OpenCode. |
 | **Kubernetes CLI** | [`cli/`](cli/) | Go **CLI** that wraps Helm to install and manage the Causely agent in-cluster. |
 | **API shell client** | [`api/`](api/) | **Bash** libraries and scripts for snapshots, comparisons, and CI workflows against the Causely API. |
 
@@ -14,10 +14,20 @@ Product documentation lives at [docs.causely.ai](https://docs.causely.ai/). For 
 
 ## MCP (`mcp/`)
 
+Point any MCP-compatible client directly at the hosted server:
+
+```
+https://api.causely.app/mcp
+```
+
+Or install the pre-built skills below for Claude Code, Claude Desktop, and Cursor, so your agent gets the right investigation sequence without hand-writing tool-selection logic.
+
 - **[`mcp/README.md`](mcp/README.md)** — Overview of the seven packaged skills (alert triage, change impact, health reporting, K8s investigation, correlated incidents, postmortems, and the master MCP router).
-- **[`mcp/plugins/README.md`](mcp/plugins/README.md)** — How to wire the hosted MCP server (`https://api.causely.app/mcp`) into Claude, Cursor, Codex, GitHub Copilot, OpenCode, and related tools, including optional custom headers.
+- **[`mcp/plugins/README.md`](mcp/plugins/README.md)** — How to wire the hosted MCP server into Claude, Cursor, Codex, GitHub Copilot, OpenCode, and related tools, including optional custom headers.
 - **Leaf skills** — six drop-in folders under [`mcp/skills/`](mcp/skills/), each with `SKILL.md` and `references/complete-investigation.md` (symlink to the shared [`mcp/complete-investigation.md`](mcp/complete-investigation.md) in this repo).
 - **Master router skill** — [`mcp/SKILL.md`](mcp/SKILL.md) (same `causely-mcp` role as in the skills overview) plus [`mcp/complete-investigation.md`](mcp/complete-investigation.md) at the `mcp/` root for full tool routing and investigation patterns.
+
+Curious why causal context matters for agent accuracy? See the [benchmark results](https://www.causely.ai/product/benchmark) — 100% fault scenario accuracy and 48% fewer tokens per investigation across 72 experiments.
 
 ---
 
