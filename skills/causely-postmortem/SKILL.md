@@ -6,9 +6,9 @@ description: >
 
 # Causely Postmortem & Ticket Skill
 
-Read `references/complete-investigation.md` for the full 30-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 33-tool inventory and evidence strategy.
 
-Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="RootCause"` to find root causes by name.
+Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="Diagnosis"` to find diagnoses by name.
 
 ---
 
@@ -16,30 +16,30 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="RootC
 
 | Tool | Use when |
 |---|---|
-| `postmortem(root_cause_id=)` | Generate full postmortem |
+| `postmortem(diagnosis_id=)` | Generate full postmortem |
 | `generate_ticket(task=)` | Engineering ticket draft |
-| `get_root_causes(active_only=false, lookback_hours=N)` | Find root cause ID |
-| `get_root_cause_details(root_cause_id=)` | Full evidence to enrich postmortem |
-| `get_incident_impact(root_cause_id=)` | Business context enrichment |
-| `name_lookup(name_mention_type="RootCause")` | Resolve root cause names |
+| `get_diagnoses(active_only=false, lookback_hours=N)` | Find diagnosis ID |
+| `get_diagnosis_details(diagnosis_id=)` | Full evidence to enrich postmortem |
+| `get_incident_impact(diagnosis_id=)` | Business context enrichment |
+| `name_lookup(name_mention_type="Diagnosis")` | Resolve diagnosis names |
 
 ---
 
 ## Decision tree
 
-- **Root cause ID known** → `postmortem(root_cause_id=)`
-- **Root cause name known** → `name_lookup(name_mention_type="RootCause")` → `postmortem(root_cause_id=)`
-- **Need evidence detail** → `get_root_cause_details(root_cause_id=)` for causal_chain + impact_service_graph
-- **Business context** → `get_incident_impact(root_cause_id=)`
+- **Diagnosis ID known** → `postmortem(diagnosis_id=)`
+- **Diagnosis name known** → `name_lookup(name_mention_type="Diagnosis")` → `postmortem(diagnosis_id=)`
+- **Need evidence detail** → `get_diagnosis_details(diagnosis_id=)` for causal_chain + impact_service_graph
+- **Business context** → `get_incident_impact(diagnosis_id=)`
 - **Standalone ticket** → `generate_ticket(task=)`
 
 ---
 
 ## Important behaviours
 
-- **Prefer `root_cause_id`** — most reliable.
-- **Handle ambiguity:** if `postmortem(root_cause_name=)` returns `ambiguity_candidates`, present and ask user to pick.
-- **`get_root_cause_details` for causal_chain** — explains WHY Causely diagnosed this root cause.
+- **Prefer `diagnosis_id`** — most reliable.
+- **Handle ambiguity:** if `postmortem(diagnosis_name=)` returns `ambiguity_candidates`, present and ask user to pick.
+- **`get_diagnosis_details` for causal_chain** — explains WHY Causely diagnosed this diagnosis.
 - **Don't re-investigate:** `postmortem` synthesises from Causely data.
 
 ---
@@ -48,9 +48,9 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="RootC
 
 ### 📋 Incident postmortem
 
-[Postmortem markdown from the `postmortem` tool — includes title, summary, timeline, root cause analysis, blast radius, contributing factors, and action items]
+[Postmortem markdown from the `postmortem` tool — includes title, summary, timeline, diagnosis analysis, blast radius, contributing factors, and action items]
 
-**Causal explanation:** [from get_root_cause_details causal_chain — WHY Causely identified this root cause]
+**Causal explanation:** [from get_diagnosis_details causal_chain — WHY Causely identified this diagnosis]
 
 **Business context:** [from get_incident_impact — responsible team, impacted products, customers]
 

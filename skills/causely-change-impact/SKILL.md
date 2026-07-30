@@ -6,7 +6,7 @@ description: >
 
 # Causely Change Impact Skill
 
-Read `references/complete-investigation.md` for the full 30-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 33-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -19,14 +19,16 @@ Use `name_lookup(name_mention=)` to resolve names.
 | `reliability_delta(service=)` | Metric regression check for one service |
 | `fleet_reliability_delta(team= or namespace=)` | Batch regression check |
 | `get_service_summary(service=)` | Post-deploy health check |
-| `get_root_cause_details(root_cause_id=)` | Full evidence when regression detected |
-| `get_incident_impact(root_cause_id=)` | Responsibility + business context |
+| `get_diagnosis_details(diagnosis_id=)` | Full evidence when regression detected |
+| `get_incident_impact(diagnosis_id=)` | Responsibility + business context |
+| `get_symptoms(symptom_name="VersionChanged", entity_types=["ComputeSpec"])` | Detect deployment events |
+| `name_lookup` → `get_events(entity_id=)` | Restarts, scaling, crash/OOM (NOT deploys) |
 
 ---
 
 ## Decision tree
 
-**Single-service:** `reliability_delta(service=)` → if REGRESSION: `get_root_cause_details` then `get_incident_impact`
+**Single-service:** `reliability_delta(service=)` → if REGRESSION: `get_diagnosis_details` then `get_incident_impact`
 
 **Fleet-wide:** `fleet_reliability_delta(team= or namespace=)` → detail per REGRESSION service
 
@@ -38,15 +40,15 @@ Use `name_lookup(name_mention=)` to resolve names.
 
 ### 🚀 Deployment validation report
 
-**Service:** [name] · **Deploy time:** [from reliability_delta or get_events] · **Report:** [now]
+**Service:** [name] · **Deploy time:** [from reliability_delta or get_symptoms VersionChanged] · **Report:** [now]
 **Verdict:** ✅ Safe / ⚠️ Monitor / 🔴 Rollback recommended / ⏳ Too early
 **Metric deltas:**
 | Metric | Before (avg) | After (avg) | Delta | Status |
 |---|---|---|---|---|
 | [from reliability_delta response] |
-**New root causes since deploy:** [name + started_at, or "None detected"]
-**Evidence:** [from description field; from get_root_cause_details causal_chain if called]
-**Blast radius:** [from get_root_cause_details impact_service_graph or impacted_services]
+**New diagnoses since deploy:** [name + started_at, or "None detected"]
+**Evidence:** [from description field; from get_diagnosis_details causal_chain if called]
+**Blast radius:** [from get_diagnosis_details impact_service_graph or impacted_services]
 **Customer impact:** [from impacted_customers or get_incident_impact impacted_context]
 **Responsible:** [from get_incident_impact responsible_context or causely.ai/team label]
 **Recommended actions:** [from remediation field; rollback recommendation if 🔴]
