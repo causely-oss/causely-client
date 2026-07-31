@@ -6,7 +6,7 @@ description: >
 
 # Causely Health Reporting Skill
 
-Read `references/complete-investigation.md` for the full 30-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 33-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
@@ -17,9 +17,9 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 | Tool | Use when | What it returns |
 |---|---|---|
 | `get_service_summary(service=)` | **Primary single-service health.** | Status + symptoms + RCs + SLOs + metrics + deps + events + errors |
-| `get_environment_health()` | Global or scoped overview. **Does NOT report SLOs.** | Overall status + root causes |
+| `get_environment_health()` | Global or scoped overview. **Does NOT report SLOs.** | Overall status + diagnoses |
 | `get_slo()` | **All SLO questions.** Fleet-wide with `cluster_names`/`namespace_names` or per-service with `entity_ids`. | Error budget, burn rate, at-risk, violated |
-| `get_root_causes(active_only=true)` | All active issues — lightweight summary | Structured JSON per RC; follow up with `get_root_cause_details` for evidence |
+| `get_diagnoses(active_only=true)` | All active issues — lightweight summary | Structured JSON per RC; follow up with `get_diagnosis_details` for evidence |
 | `team_health(team=)` | Team-scoped standup | Degraded first, healthy grouped at end |
 | `get_symptoms()` | All active symptoms — no IDs needed | Full signal picture |
 | `rank_entities(entity_type=, mode=)` | "Which services are most critical?" | Ranked list |
@@ -35,7 +35,7 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 - **Namespace scoped** → `get_environment_health(namespaces=)`
 - **Team standup** → `team_health(team=)` → `get_incident_impact` for degraded
 - **"Which services are most critical?"** → `rank_entities(entity_type="Service", mode=dependents)`
-- **Weekly trends** → `get_root_causes(active_only=false, lookback_hours=168)`
+- **Weekly trends** → `get_diagnoses(active_only=false, lookback_hours=168)`
 
 ---
 
@@ -43,15 +43,15 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
 ### Morning briefing
 
-**🟢 / 🟡 / 🔴 System health: [status]** — *[N] active root causes*
+**🟢 / 🟡 / 🔴 System health: [status]** — *[N] active diagnoses*
 
-| Service | Root cause | Severity | Since | Evidence | Owner |
+| Service | Diagnosis | Severity | Since | Evidence | Owner |
 |---|---|---|---|---|---|
 
 **SLOs at risk:** [from `get_slo(only_at_risk=true)`]
 
 ### On-call handoff
 
-🔴 **Active now:** [severity · service · root cause]
+🔴 **Active now:** [severity · service · diagnosis]
 🟡 **SLOs burning:** [from `get_slo(only_at_risk=true)` — burn rate > 1.0]
-📋 **Watch list:** [recurring root causes in past 24h]
+📋 **Watch list:** [recurring diagnoses in past 24h]
