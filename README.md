@@ -5,6 +5,7 @@ This repository bundles **client-side resources** for working with [Causely](htt
 | Area | Path | What it is |
 |------|------|------------|
 | **MCP skills & plugins** | [`mcp/`](mcp/) | Claude (and compatible) **skills** that route work across Causely’s MCP tools, plus **starter configs** for Cursor, Claude, Codex, VS Code Copilot, and OpenCode. |
+| **Background agents** | [`background-agent/`](background-agent/) | How to wire Causely's MCP server into self-hosted background coding agents (Open-Inspect today, more harnesses planned). |
 | **Kubernetes CLI** | [`cli/`](cli/) | Go **CLI** that wraps Helm to install and manage the Causely agent in-cluster. |
 | **API shell client** | [`api/`](api/) | **Bash** libraries and scripts for snapshots, comparisons, and CI workflows against the Causely API. |
 
