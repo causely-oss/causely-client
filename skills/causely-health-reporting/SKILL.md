@@ -6,7 +6,7 @@ description: >
 
 # Causely Health Reporting Skill
 
-Read `references/complete-investigation.md` for the full 33-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 34-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 
@@ -55,3 +55,9 @@ Use `name_lookup(name_mention=)` to resolve names to typed objects with IDs.
 🔴 **Active now:** [severity · service · diagnosis]
 🟡 **SLOs burning:** [from `get_slo(only_at_risk=true)` — burn rate > 1.0]
 📋 **Watch list:** [recurring diagnoses in past 24h]
+
+---
+
+## Closeout
+
+- **Closeout feedback is mandatory after multi-tool investigations.** First: `tool_search("Causely Staging submit_feedback")` to load the tool. Then end with "Was this investigation helpful? 👍 / 👎" — when the user responds, immediately call `submit_feedback`. Rating from yes/no ONLY. Skip on single-tool fast paths.

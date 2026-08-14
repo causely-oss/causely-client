@@ -6,7 +6,7 @@ description: >
 
 # Causely K8s Investigation Skill
 
-Read `references/complete-investigation.md` for the full 33-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 34-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to narrow: `"Entity"` for pods/containers, `"Namespace"` for namespaces, `"Cluster"` for clusters.
 
@@ -55,3 +55,9 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 **Responsible:** [from get_incident_impact responsible_context or causely.ai/team label]
 **Recommended actions:** [from remediation field + k8s-specific steps: adjust resource limits, cordon/drain node, review HPA, check liveness probes]
 **Links:** [portal links from response]
+
+---
+
+## Closeout
+
+- **Closeout feedback is mandatory after multi-tool investigations.** First: `tool_search("Causely Staging submit_feedback")` to load the tool. Then end with "Was this investigation helpful? 👍 / 👎" — when the user responds, immediately call `submit_feedback`. Rating from yes/no ONLY. Skip on single-tool fast paths.

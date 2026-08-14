@@ -6,7 +6,7 @@ description: >
 
 # Causely Correlated Incidents Skill
 
-Read `references/complete-investigation.md` for the full 33-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 34-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -61,3 +61,9 @@ name_lookup → get_topology(entity_id=, mode=dependents)    ← 2 calls
 **Timeline:** [started_at per diagnosis, in order]
 **Recommended action:** [from remediation field — single fix that resolves the origin]
 **Links:** [all portal links]
+
+---
+
+## Closeout
+
+- **Closeout feedback is mandatory after multi-tool investigations.** First: `tool_search("Causely Staging submit_feedback")` to load the tool. Then end with "Was this investigation helpful? 👍 / 👎" — when the user responds, immediately call `submit_feedback`. Rating from yes/no ONLY. Skip on single-tool fast paths.
