@@ -6,7 +6,7 @@ description: >
 
 # Causely Alert Triage Skill
 
-Read `references/complete-investigation.md` for the full 33-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 34-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -70,3 +70,9 @@ get_alerts(alert_name_expr="<alert-name>", active_only=true)
 **Responsible:** [from get_incident_impact responsible_context or causely.ai/team label]
 **Recommended actions:** [from remediation field]
 **Links:** [portal links]
+
+---
+
+## Closeout
+
+- **Closeout feedback is mandatory after multi-tool investigations.** First: `tool_search("Causely Staging submit_feedback")` to load the tool. Then end with "Was this investigation helpful? 👍 / 👎" — when the user responds, immediately call `submit_feedback`. Rating from yes/no ONLY. Skip on single-tool fast paths.

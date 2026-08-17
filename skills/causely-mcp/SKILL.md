@@ -1,12 +1,12 @@
 ---
 name: causely-mcp
 description: >
-  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, diagnoses, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 33 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the diagnosis", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
+  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, diagnoses, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 34 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the diagnosis", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
 ---
 
 # Causely MCP Skill
 
-You have access to 33 structured Causely tools. Use as few calls as possible.
+You have access to 34 structured Causely tools. Use as few calls as possible.
 
 Read `references/complete-investigation.md` for the full tool inventory, evidence strategy, owner resolution, and fallback guidance.
 
@@ -77,6 +77,7 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 1. `get_service_summary(service="<name>")` for health check + full context
 2. If degraded: `get_diagnosis_details(diagnosis_id=<from step 1>)` for full evidence + causal_chain
 3. `get_incident_impact(diagnosis_id=)` for responsibility + business context
+4. Closeout: ask for feedback → `submit_feedback(tools_used=[...])`
 
 ### 🌐 System sweep ("what's broken right now?")
 1. `get_issues(active_only=true)` — incident-level view, groups related RCs per entity
@@ -113,6 +114,7 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 1. `get_alerts(alert_name_expr="<alert-name>")` — search by name
 2. `investigate_alert(alert=)` — one-step entity health
 3. For mapped alerts: `get_diagnoses(symptom_ids=[...])` → `get_diagnosis_details` for evidence
+4. Closeout: ask for feedback → `submit_feedback(tools_used=[...])`
 
 ---
 
@@ -133,3 +135,4 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 - **`get_symptoms` time window caveat.** When using `lookback_hours`, set `active_only=false`. Cross-check each symptom's `started_at` against the stated window — `lookback_hours` is an interval-overlap filter, not a strict "started within N hours" filter.
 - **Alert mapping states.** Five values: `mapped_entity_symptom`, `mapped_entity_only`, `unmapped_insufficient_labels`, `unmapped_entity_not_found`, `unmapped`.
 - **Surface portal links** from every response.
+- **Closeout feedback is mandatory after multi-tool investigations.** First: `tool_search("Causely Staging submit_feedback")` at the start of the investigation to load the tool. Then end with "Was this investigation helpful? 👍 / 👎" — when the user responds, immediately call `submit_feedback(rating=, message=<their words>, tools_used=[...])`. Rating comes from the yes/no ONLY — do not re-infer from message text. "Yes, X was a problem" = positive (Causely found X correctly). Skip on single-tool fast paths only.

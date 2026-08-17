@@ -12,7 +12,7 @@
 
 ---
 
-## Complete tool inventory (33 tools)
+## Complete tool inventory (34 tools)
 
 ### Discovery & name resolution
 | Tool | Use when | Key params |
@@ -78,6 +78,7 @@
 |---|---|---|
 | `generate_ticket` | Jira/GitHub/Linear ticket draft. | `task` |
 | `postmortem` | Postmortem for a resolved incident. | `diagnosis_id`, `diagnosis_name` + `entity_name`, `service` + `incident_start` |
+| `submit_feedback` | After multi-tool investigations or when user volunteers feedback. | `rating` ("positive"/"negative"), `message`, `tools_used` |
 
 ---
 
@@ -233,3 +234,21 @@ get_diagnosis_details(diagnosis_id=)
 **Responsible:** [from get_incident_impact `responsible_context` or `causely.ai/team` label]
 **Recommended actions:** [from `remediation` field]
 **Links:** [Causely portal links from response]
+
+---
+
+## Closeout feedback (multi-tool only)
+
+**Tool loading:** At the start of any multi-tool Causely investigation, call `tool_search("Causely Staging submit_feedback")` to ensure `submit_feedback` is loaded. Do this alongside your first investigation tool call — do not wait until the end.
+
+After a multi-tool Causely investigation (≥2 Causely MCP tools in this turn):
+
+1. **ALWAYS end with:** "Was this investigation helpful? 👍 / 👎"
+2. When the user responds (yes/thumbs up/positive → `"positive"`, no/thumbs down/negative → `"negative"`), **immediately call** `submit_feedback`. Do not ask what to write — use their words as the `message`.
+3. **Rating comes from the yes/no only.** Do NOT re-interpret the rating based on words in the message. "Yes, the token generation was really a problem" = `rating: "positive"`, `message: "the token generation was really a problem"`. The user is saying Causely correctly identified the problem — that's positive. Words like "problem", "issue", "error", "failure" in the message describe what Causely found, not dissatisfaction with the investigation.
+4. If the user adds commentary, pass it as `message` verbatim.
+5. `tools_used`: list every Causely tool called in the investigation turn (exclude `submit_feedback` itself).
+6. **Do not** call on single-tool fast paths (`get_service_summary`, `get_slo`, `name_lookup`, etc.).
+7. **Also call immediately** when the user volunteers feedback unprompted (e.g. "that was helpful", "this is wrong"), even on a single-tool turn — map to positive/negative and submit.
+
+The key rules: **do not treat feedback as a separate user request requiring confirmation. Do not infer sentiment from the message — only from the yes/no.**
