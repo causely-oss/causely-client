@@ -34,21 +34,32 @@ Restart Claude Desktop after saving.
 
 ## Claude Code
 
-Copy `.mcp.json` to your repository root, or merge its `mcpServers` block into your existing `.mcp.json`.
+Custom Claude.ai connectors are not required. Register the server once for all projects:
+
+```bash
+claude mcp add --scope user --transport http causely https://api.causely.app/mcp
+```
+
+Or copy `.mcp.json` to your repository root, or merge its `mcpServers` block into your existing `.mcp.json`.
 
 ## Authentication
 
-### OAuth (recommended)
+### OAuth (recommended for a one-off session)
 
-Claude initiates the OAuth flow automatically. Sign in to Causely once — Claude manages token refresh from that point on.
+Claude initiates the OAuth flow automatically. Sign in to Causely once. Access tokens expire after a few hours, so Claude may prompt you to sign in again.
 
-### API credentials
+### Personal token or API credentials
 
-For non-interactive environments, generate credentials at [auth.causely.app/oauth/portal/api-tokens](https://auth.causely.app/oauth/portal/api-tokens) and add the header:
+For daily CLI use, background agents, or non-interactive environments, generate credentials and add the header:
+
+- Personal token (runs as you): [auth.causely.app/oauth/portal/personal-tokens](https://auth.causely.app/oauth/portal/personal-tokens)
+- Tenant-wide API token (team or shared agent): [auth.causely.app/oauth/portal/api-tokens](https://auth.causely.app/oauth/portal/api-tokens)
 
 ```
 X-Causely-Client-Basic: Basic <base64(client_id:client_secret)>
 ```
+
+MCP usage is the same for both; the difference is identity and the role attached to the token.
 
 ## Troubleshooting
 
