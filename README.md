@@ -2,6 +2,8 @@
 
 These are the tools that let AI agents query Causely's causal model directly, instead of scanning raw telemetry and guessing. This repository bundles **client-side resources** for working with [Causely](https://causely.ai): agent integrations (MCP), a Kubernetes install CLI, and a shell toolkit for the Causely GraphQL API.
 
+**The Causely MCP server is hosted at `https://api.causely.app/mcp`.** Point any MCP-compatible client at it and sign in with your Causely account on first connect (OAuth, no API keys). It exposes Causely's causal model, deterministic root cause, blast radius, and service health, as structured tools your agent can call directly.
+
 | Area | Path | What it is |
 |------|------|------------|
 | **MCP skills & plugins** | [`mcp/`](mcp/) | Claude (and compatible) **skills** that route work across Causely's MCP tools, plus **starter configs** for Cursor, Claude, Codex, VS Code Copilot, and OpenCode. |
@@ -19,6 +21,8 @@ Point any MCP-compatible client directly at the hosted server:
 ```
 https://api.causely.app/mcp
 ```
+
+On first connect, your client opens a browser to sign in to Causely (OAuth). No API keys or custom headers are required for the hosted server.
 
 Or install the pre-built skills below for Claude Code, Claude Desktop, and Cursor, so your agent gets the right investigation sequence without hand-writing tool-selection logic.
 
