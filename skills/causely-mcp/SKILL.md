@@ -1,12 +1,12 @@
 ---
 name: causely-mcp
 description: >
-  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, diagnoses, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 34 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the diagnosis", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
+  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, diagnoses, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 45 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the diagnosis", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
 ---
 
 # Causely MCP Skill
 
-You have access to 34 structured Causely tools. Use as few calls as possible.
+You have access to 45 structured Causely tools. Use as few calls as possible.
 
 Read `references/complete-investigation.md` for the full tool inventory, evidence strategy, owner resolution, and fallback guidance.
 
@@ -68,6 +68,14 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 | "What deployments happened?" | `get_symptoms(symptom_name="VersionChanged", entity_types=["ComputeSpec"])` |
 | "Which DB queries are slow?" | `name_lookup` → `get_slow_queries(entity_ids=)` |
 | "What is <name>?" | `name_lookup(name_mention=)` |
+| "Set error rate threshold for X to 1%" | `name_lookup` → `get_supported_threshold_metrics` → `create_threshold_configuration(scope="INDIVIDUAL", ...)` |
+| "What threshold overrides exist?" | `get_threshold_configurations()` |
+| "Make X a critical service" | `name_lookup` → `set_service_tier(entity_id=, tier="sloEnabled")` |
+| "Hide this noisy service" | `name_lookup` → `set_service_tier(entity_id=, tier="hidden")` |
+| "What tier is X?" | `name_lookup` → `get_service_tier(entity_id=)` |
+| "Snooze this issue for 24 hours" | `ignore_issue(issue_id=, until=<RFC3339>)` |
+| "Stop ignoring this issue" | `unignore_issue(issue_id=)` |
+| "Is this issue snoozed?" | `get_issue_ignore_status(issue_id=)` |
 
 ---
 

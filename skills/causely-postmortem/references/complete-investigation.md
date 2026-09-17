@@ -12,7 +12,7 @@
 
 ---
 
-## Complete tool inventory (34 tools)
+## Complete tool inventory (45 tools)
 
 ### Discovery & name resolution
 | Tool | Use when | Key params |
@@ -79,6 +79,21 @@
 | `generate_ticket` | Jira/GitHub/Linear ticket draft. | `task` |
 | `postmortem` | Postmortem for a resolved incident. | `diagnosis_id`, `diagnosis_name` + `entity_name`, `service` + `incident_start` |
 | `submit_feedback` | After multi-tool investigations or when user volunteers feedback. | `rating` ("positive"/"negative"), `message`, `tools_used` |
+
+### Administration & configuration
+| Tool | Use when | Key params |
+|---|---|---|
+| `get_supported_threshold_metrics` | List valid metric keys before creating thresholds. | `entity_type` |
+| `get_threshold_configurations` | List/get existing threshold overrides. | `id`, `scope`, `target_entity_id` |
+| `create_threshold_configuration` | Create manual threshold override (affects signal detection AND SLO). | `scope` (INDIVIDUAL/LABEL/GLOBAL), `target_entity_id`, `label_selector`, `thresholds`, `min_thresholds` |
+| `update_threshold_configuration` | Update existing override values (cannot change scope/target). | `id`, `thresholds`, `min_thresholds` |
+| `delete_threshold_configuration` | Delete override — revert to default/learned. | `id` |
+| `get_service_tier` | Check entity's priority tier. | `entity_id` |
+| `set_service_tier` | Set priority tier (sloEnabled/sloDisabled/hidden/unassigned). Requires Developer/Admin. | `entity_id`, `tier` |
+| `clear_service_tier` | Remove tier config entirely. For non-Service entities, also removes SLO. | `entity_id` |
+| `get_issue_ignore_status` | Check if issue is snoozed. | `issue_id` |
+| `ignore_issue` | Snooze issue until a time — severity suppressed. | `issue_id`, `until` (RFC3339) |
+| `unignore_issue` | Restore normal severity immediately. | `issue_id` |
 
 ---
 
