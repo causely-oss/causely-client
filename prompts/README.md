@@ -37,6 +37,10 @@ What has Causely found in my environment so far? It has already discovered {{ent
 
 The body is the exact text sent to an agent. Insert an argument with `{{name}}`; every placeholder must be declared in `arguments`.
 
+### Frontmatter syntax
+
+Frontmatter is a small subset of YAML so that any consumer can read it without a full parser: `key: value` lines with plain, `'single'` or `"double"` quoted values, inline lists (`tags: [a, b]`), `true` / `false`, and one block list of maps for `arguments`. Anchors, multi-line values, nested lists, tabs and inline comments are not supported.
+
 ## Writing a prompt
 
 - Name Causely, so the agent uses the Causely tools.
