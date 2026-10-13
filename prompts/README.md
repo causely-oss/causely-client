@@ -69,6 +69,10 @@ Prompts say nothing about where or for whom they are shown. Choosing which promp
 | `causely-explain-environment` | Explain what Causely knows in plain language |
 | `causely-whats-broken` | Active issues with diagnoses, most urgent first |
 | `causely-what-changed` | Recent deploys and config changes, and their effect |
+| `causely-what-would-break` | What would break if a service failed, what could cause it, and which signals are missing |
+| `causely-check-area-covered` | What Causely sees of a team's area, and what it can't |
+| `causely-check-cluster-covered` | The services in a cluster, what depends on them, and what Causely can't see |
+| `causely-whats-at-risk` | What is most at risk and what could cause it, in plain language |
 | `causely-verify-active-issues` | Quick check that an agent can reach Causely |
 | `causely-incident-impact` | Impact of an incident |
 | `causely-service-health` | Health of a service |
