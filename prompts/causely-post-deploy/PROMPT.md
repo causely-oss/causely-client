@@ -1,7 +1,11 @@
 ---
 name: causely-post-deploy
-title: Post-deploy validation
-description: Check whether a recent deploy broke anything.
+title: Check whether a deploy broke anything
+description: Check whether the latest deploy of a service broke anything.
+arguments:
+  - name: service
+    description: The service to ask about, such as "checkout".
+    required: true
 tags: [changes]
 ---
-We deployed v2.3.1 of order-service 20 minutes ago. Did it break anything?
+Using Causely, did the latest deploy of {{service}} break anything? Check the service and the services that depend on it.

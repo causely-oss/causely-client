@@ -1,7 +1,11 @@
 ---
 name: causely-discover-cluster
-title: See your cluster
+title: Explore the services in a cluster
 description: Walk through the services in a cluster and how they connect.
+arguments:
+  - name: cluster
+    description: The cluster to ask about, such as "production-1".
+    required: true
 tags: [discovery]
 ---
-What has Causely found in my cluster? Walk me through the services and how they connect.
+Using Causely, what has been discovered in {{cluster}}? Walk through its services and how they connect.

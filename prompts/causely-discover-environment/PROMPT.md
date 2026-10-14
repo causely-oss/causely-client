@@ -1,7 +1,7 @@
 ---
 name: causely-discover-environment
-title: See what Causely found
+title: Explore what has been discovered
 description: Walk through what Causely has discovered so far and what to connect next.
 tags: [discovery]
 ---
-What has Causely found in my environment so far? Walk me through one of the causal connections, and suggest what I should connect next.
+Using Causely, what has been discovered in the environment so far? Walk through one of the causal connections, and suggest what to connect next.

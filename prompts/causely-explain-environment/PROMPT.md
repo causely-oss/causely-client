@@ -1,7 +1,7 @@
 ---
 name: causely-explain-environment
-title: See what Causely knows
-description: Explain what Causely has found in plain language.
+title: Explain what Causely knows
+description: Explain what Causely knows about the environment in plain language.
 tags: [discovery]
 ---
-What has Causely found in our environment? Explain it in plain language.
+Using Causely, what does Causely know about the environment? Explain it in plain language.

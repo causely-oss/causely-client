@@ -1,7 +1,11 @@
 ---
 name: causely-change-impact-example
-title: Change impact example
-description: Example prompt for the causely-change-impact skill.
+title: Review a service's recent changes
+description: Find how recent deploys and config changes affected a service and the services around it.
+arguments:
+  - name: service
+    description: The service to ask about, such as "checkout".
+    required: true
 tags: [skill-example]
 ---
-We deployed v2.3.1 of order-service 20 minutes ago. Did it break anything?
+Using Causely, how have recent changes to {{service}}, such as deploys and config changes, affected it and the services that depend on it?

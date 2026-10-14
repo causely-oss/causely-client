@@ -1,6 +1,6 @@
 ---
 name: causely-explain-diagnosis
-title: See what's causing it
+title: Find what's causing a service's problem
 description: Find what is causing the problem on a service, what it affects, and which signals show it.
 arguments:
   - name: service
@@ -8,4 +8,4 @@ arguments:
     required: true
 tags: [issues]
 ---
-Using Causely, what is causing the problem on {{service}}, and what does it affect? Which signals show it?
+Using Causely, what is causing the problem on {{service}}? What does it affect, and which signals show it?
