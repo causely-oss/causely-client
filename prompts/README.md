@@ -48,7 +48,7 @@ Frontmatter is a small subset of YAML so that any consumer can read it without a
 - Make the title say what the prompt finds or does, in a few plain words, and keep titles unique.
 - Write complete, grammatical sentences.
 - Work without extra context. Don't ask for something the person may not have to hand, such as an alert to paste.
-- Keep it to what to ask, not how the agent should answer.
+- Say what to ask. Add how to answer only where the answer is poor without it, such as a length limit, what to cover, or "state only what Causely reports". People copy these prompts into their own agent, so the prompt has to work without any other instructions.
 - Names are stable once published. Fix wording in place; to retire a prompt, leave it and add a new one rather than renaming.
 
 ## Fetching
