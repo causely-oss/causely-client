@@ -1,7 +1,7 @@
 ---
 name: causely-verify-active-issues
-title: Which services have active issues?
+title: List services with active issues
 description: Quick check that the agent can reach Causely.
 tags: [verify]
 ---
-Causely: What services have active issues right now
+Using Causely, which services have active issues right now?

@@ -1,11 +1,11 @@
 ---
 name: causely-discover-environment-with-entities
-title: See what Causely found
-description: Same as discovering the environment, citing how many entities Causely has already discovered.
+title: Explore the environment discovered so far
+description: Walk through what has been discovered, citing how many entities Causely already knows about.
 arguments:
   - name: entities
     description: What Causely has already discovered, such as "12 entities".
     required: false
 tags: [discovery]
 ---
-What has Causely found in my environment so far? It has already discovered {{entities}}. Walk me through one of the causal connections, and suggest what I should connect next.
+Using Causely, what has been discovered in the environment so far? Causely already knows about {{entities}}. Walk through one of the causal connections, and suggest what to connect next.

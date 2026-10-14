@@ -1,7 +1,7 @@
 ---
 name: causely-correlated-incidents-example
-title: Correlated incidents example
-description: Example prompt for the causely-correlated-incidents skill.
+title: Find one cause behind many alerts
+description: Find out whether services alerting at the same time share a single underlying diagnosis.
 tags: [skill-example]
 ---
-Five services are alerting at the same time. Is there a single underlying diagnosis?
+Using Causely, are the services alerting right now caused by a single underlying diagnosis?

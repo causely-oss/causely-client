@@ -1,7 +1,7 @@
 ---
 name: causely-health-reporting-example
-title: Health reporting example
-description: Example prompt for the causely-health-reporting skill.
+title: Summarize service health for a standup
+description: Summarize which services are healthy, at risk or broken, ready to read out.
 tags: [skill-example]
 ---
-Give me a standup summary of service health for the platform team.
+Using Causely, summarize service health for a standup: what is healthy, what is at risk, and what is broken.

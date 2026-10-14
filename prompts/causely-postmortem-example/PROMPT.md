@@ -1,7 +1,7 @@
 ---
 name: causely-postmortem-example
-title: Postmortem example
-description: Example prompt for the causely-postmortem skill.
+title: Write an incident postmortem
+description: Write a postmortem for the most recent incident.
 tags: [skill-example]
 ---
-Write a postmortem for yesterday's checkout incident.
+Using Causely, write a postmortem for the most recent incident: what happened, the cause, the impact and the follow-up actions.

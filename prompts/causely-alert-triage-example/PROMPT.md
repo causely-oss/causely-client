@@ -1,7 +1,11 @@
 ---
 name: causely-alert-triage-example
-title: Alert triage example
-description: Example prompt for the causely-alert-triage skill.
+title: Diagnose a firing alert
+description: Find the diagnosis behind an alert that is firing on a service.
+arguments:
+  - name: service
+    description: The service to ask about, such as "checkout".
+    required: true
 tags: [skill-example]
 ---
-PagerDuty is firing P1 for checkout-service. What diagnosis is causing this?
+Using Causely, an alert is firing for {{service}}. Which diagnosis is causing it?

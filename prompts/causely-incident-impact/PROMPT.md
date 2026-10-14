@@ -1,7 +1,7 @@
 ---
 name: causely-incident-impact
-title: Incident impact
-description: Ask for an incident's impact.
+title: Assess the impact of an incident
+description: Find what the most urgent active incident affects.
 tags: [incidents]
 ---
-What's the impact of this incident?
+Using Causely, what is the impact of the most urgent active incident? List the services it affects and what depends on them.
