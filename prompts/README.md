@@ -75,6 +75,8 @@ Prompts say nothing about where or for whom they are shown. Choosing which promp
 | `causely-trace-failure-spread` | How the most severe active issue spreads, and which affected service would look like a separate problem |
 | `causely-trace-failure-spread-for-service` | The same, for the active issue affecting a given service |
 | `causely-trace-failure-spread-from-service` | How a failure in a given service would spread when nothing is failing, and which signals are missing |
+| `causely-review-active-issues` | Walk through a current issue that spreads across services, and what Causely ruled out |
+| `causely-review-no-active-issues` | How a problem would spread, from a recent issue or a prediction for the most depended-on service |
 | `causely-what-would-break` | What would break if a service failed, what could cause it, and which signals are missing |
 | `causely-explain-diagnosis` | What is causing the problem on a service, what it affects, and which signals show it |
 | `causely-check-area-covered` | How much of the environment Causely sees, and what it can't |
