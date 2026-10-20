@@ -6,7 +6,7 @@ description: >
 
 # Causely Postmortem & Ticket Skill
 
-Read `references/complete-investigation.md` for the full 45-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 46-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="Diagnosis"` to find diagnoses by name.
 
@@ -29,7 +29,7 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="Diagn
 
 - **Diagnosis ID known** → `postmortem(diagnosis_id=)`
 - **Diagnosis name known** → `name_lookup(name_mention_type="Diagnosis")` → `postmortem(diagnosis_id=)`
-- **Need evidence detail** → `get_diagnosis_details(diagnosis_id=)` for causal_chain + impact_service_graph
+- **Need evidence detail** → `get_diagnosis_details(diagnosis_id=)` for entity_causal_chain + impact_service_graph
 - **Business context** → `get_incident_impact(diagnosis_id=)`
 - **Standalone ticket** → `generate_ticket(task=)`
 
@@ -39,7 +39,7 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="Diagn
 
 - **Prefer `diagnosis_id`** — most reliable.
 - **Handle ambiguity:** if `postmortem(diagnosis_name=)` returns `ambiguity_candidates`, present and ask user to pick.
-- **`get_diagnosis_details` for causal_chain** — explains WHY Causely diagnosed this diagnosis.
+- **`get_diagnosis_details` for entity_causal_chain** — explains WHY Causely diagnosed this diagnosis.
 - **Don't re-investigate:** `postmortem` synthesises from Causely data.
 
 ---
@@ -50,7 +50,7 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="Diagn
 
 [Postmortem markdown from the `postmortem` tool — includes title, summary, timeline, diagnosis analysis, blast radius, contributing factors, and action items]
 
-**Causal explanation:** [from get_diagnosis_details causal_chain — WHY Causely identified this diagnosis]
+**Causal explanation:** [from get_diagnosis_details entity_causal_chain — WHY Causely identified this diagnosis]
 
 **Business context:** [from get_incident_impact — responsible team, impacted products, customers]
 

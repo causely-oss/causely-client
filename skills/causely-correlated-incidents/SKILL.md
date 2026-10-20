@@ -6,7 +6,7 @@ description: >
 
 # Causely Correlated Incidents Skill
 
-Read `references/complete-investigation.md` for the full 45-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 46-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -17,7 +17,7 @@ Use `name_lookup(name_mention=)` to resolve names.
 | Tool | Use when |
 |---|---|
 | `get_diagnoses(active_only=true)` | Primary correlation tool — lightweight summary |
-| `get_diagnosis_details(diagnosis_id=)` | Full evidence: causal_chain + impact_service_graph for blast radius |
+| `get_diagnosis_details(diagnosis_id=)` | Full evidence: entity_causal_chain + impact_service_graph for blast radius |
 | `get_incident_impact(diagnosis_id=)` | Responsibility + business context |
 | `get_symptoms()` | Full signal scan — best first step |
 | `name_lookup` → `get_topology(entity_id=, mode=)` | Full dependency graph |
@@ -54,7 +54,7 @@ name_lookup → get_topology(entity_id=, mode=dependents)    ← 2 calls
 **Correlation:** ✅ Correlated / ⚠️ Partial / ❓ Unconfirmed — [origin entity if known]
 **Diagnosis:** [name + entity + portal link from get_diagnoses]
 **Propagation path:** [from get_diagnosis_details impact_service_graph edges]
-**Evidence:** [from description field; from get_diagnosis_details causal_chain for WHY]
+**Evidence:** [from description field; from get_diagnosis_details entity_causal_chain for WHY]
 **Blast radius:** [from impact_service_graph — total affected services count + names]
 **Customer impact:** [from impacted_customers or get_incident_impact impacted_context]
 **Responsible:** [from get_incident_impact responsible_context]

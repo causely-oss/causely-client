@@ -6,7 +6,7 @@ description: >
 
 # Causely K8s Investigation Skill
 
-Read `references/complete-investigation.md` for the full 45-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 46-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to narrow: `"Entity"` for pods/containers, `"Namespace"` for namespaces, `"Cluster"` for clusters.
 
@@ -35,7 +35,7 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 - **Pod/container detail** → `name_lookup` → `get_entity_health(entity_id=)`
 - **Why did my pod restart?** → `name_lookup` → `get_events(entity_id=, severity_filter=WARNING)`
 - **Namespace sweep** → `get_environment_health(namespaces=["<ns>"])`
-- **Full RC evidence** → `get_diagnosis_details(diagnosis_id=)` → read causal_chain
+- **Full RC evidence** → `get_diagnosis_details(diagnosis_id=)` → read entity_causal_chain
 - **What could be wrong with this entity?** → `name_lookup` → `get_potential_diagnoses(entity_id=)` → compare active vs causality-only hypotheses
 - **What could explain this symptom?** → `name_lookup` → `get_signal_potential_diagnoses(entity_id=, signal_name=)`
 
@@ -46,7 +46,7 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 ### 🔴 / 🟡 / 🟢 [Service/Entity] — [Status]
 
 **Diagnosis:** [name + entity + portal link]
-**Evidence:** [from description field; from get_diagnosis_details causal_chain for WHY Causely diagnosed this]
+**Evidence:** [from description field; from get_diagnosis_details entity_causal_chain for WHY Causely diagnosed this]
 **Resource state:** [from get_metrics if called — CPU/memory usage vs limits]
 **Configuration:** [from get_config if called — relevant resource limits, HPA settings]
 **Recent events:** [from get_events if called — OOMKill, restarts, scaling events with timestamps]

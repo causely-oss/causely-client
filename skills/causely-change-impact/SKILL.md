@@ -6,7 +6,7 @@ description: >
 
 # Causely Change Impact Skill
 
-Read `references/complete-investigation.md` for the full 45-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 46-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -47,7 +47,7 @@ Use `name_lookup(name_mention=)` to resolve names.
 |---|---|---|---|---|
 | [from reliability_delta response] |
 **New diagnoses since deploy:** [name + started_at, or "None detected"]
-**Evidence:** [from description field; from get_diagnosis_details causal_chain if called]
+**Evidence:** [from description field; from get_diagnosis_details entity_causal_chain if called]
 **Blast radius:** [from get_diagnosis_details impact_service_graph or impacted_services]
 **Customer impact:** [from impacted_customers or get_incident_impact impacted_context]
 **Responsible:** [from get_incident_impact responsible_context or causely.ai/team label]

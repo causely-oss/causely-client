@@ -4,7 +4,7 @@
 
 **`get_service_summary` or `get_environment_health` for health checks.** `get_service_summary(service=)` resolves names automatically and returns symptoms, diagnoses, SLOs, metrics, deps, events, and logs in one call. `get_environment_health` gives overall status and diagnoses but does NOT include SLO state.
 
-**`get_diagnoses` returns lightweight summaries.** It does NOT include symptoms, causal_chain, impact_service_graph, exceptions, or events. Follow up with `get_diagnosis_details(diagnosis_id=)` for full evidence on a specific diagnosis.
+**`get_diagnoses` returns lightweight summaries.** It does NOT include symptoms, entity_causal_chain, impact_service_graph, exceptions, or events. Follow up with `get_diagnosis_details(diagnosis_id=)` for full evidence on a specific diagnosis.
 
 **`get_slo` for all SLO questions.** Supports fleet-wide queries without entity_ids using `cluster_names` and `namespace_names` filters.
 
@@ -12,7 +12,7 @@
 
 ---
 
-## Complete tool inventory (45 tools)
+## Complete tool inventory (46 tools)
 
 ### Discovery & name resolution
 | Tool | Use when | Key params |
@@ -33,7 +33,8 @@
 ### Health & investigation
 | Tool | Use when | Key params |
 |---|---|---|
-| `get_service_summary` | **Primary single-service health by name.** Resolves names automatically. | `service`, `lookback_hours` |
+| `get_service_summary` | **Primary single-service health by name.** Resolves names automatically. Use `cluster_name`/`namespace_name` to disambiguate. Pass `entity_id` to skip name resolution. | `service`, `cluster_name`, `namespace_name`, `entity_id`, `lookback_hours` |
+| `get_business_transaction_summary` | **Primary tool for business transaction / user journey health by name.** Aggregates across all routes (Paths). | `business_transaction`, `lookback_hours` |
 | `get_environment_health` | Global or scoped health overview. **Does NOT report SLO state.** | `namespaces`, `clusters`, `services`, `products`, `active_only`, `lookback_hours` |
 | `get_incident_impact` | Incident investigation — responsibility + business context. **Not for health checks.** | `diagnosis_id`, `diagnosis_name`, `entity_id` |
 | `get_entity_health` | Health for any entity by ID. | `entity_id`, `lookback_hours` |
@@ -42,11 +43,11 @@
 ### Diagnosis
 | Tool | Use when | Key params |
 |---|---|---|
-| `get_diagnoses` | All active diagnoses — **lightweight summary only.** Does NOT include causal_chain, symptoms, or impact_service_graph. | `active_only`, `related_entity_ids`, `cluster_names`, `namespace_names`, `symptom_ids`, `diagnosis_id` |
-| `get_diagnosis_details` | **Full evidence for a single diagnosis.** Returns symptoms, causal_chain, impact_service_graph, exceptions, events. Follow-up to `get_diagnoses`. | `diagnosis_id` |
+| `get_diagnoses` | All active diagnoses — **lightweight summary only.** Does NOT include entity_causal_chain, symptoms, or impact_service_graph. | `active_only`, `related_entity_ids`, `cluster_names`, `namespace_names`, `symptom_ids`, `diagnosis_id` |
+| `get_diagnosis_details` | **Full evidence for a single diagnosis.** Returns symptoms, entity_causal_chain, impact_service_graph, exceptions, events. Follow-up to `get_diagnoses`. | `diagnosis_id` |
 | `get_symptoms` | **Best first step in any incident** — no entity_ids needed. | `entity_ids`, `active_only`, `lookback_hours`, `symptom_name` |
 | `get_alerts` | Alert history, mapped/unmapped. `alert_name_expr` for name search. | `alert_name_expr`, `mapping_state_filters`, `alert_state_filters` |
-| `investigate_alert` | One-step alert → entity health. | `alert`, `lookback_hours` |
+| `investigate_alert` | **One-step alert investigation.** Returns full issue details (entity_causal_chain + impact_service_graph) + entity health. Do NOT call get_issues/get_issue_details after. | `alert`, `lookback_hours` |
 | `get_logs` | Live entity logs OR stored evidence logs. | `entity_id` XOR `diagnosis_id` |
 | `get_events` | Lifecycle events (restarts, scaling, crash/OOM). **NOT for deployments/config changes** — use `get_symptoms(symptom_name="VersionChanged", entity_types=["ComputeSpec"])` instead. | `entity_id` |
 | `get_slow_queries` | DB slow query analysis. | `entity_ids` |
@@ -63,7 +64,7 @@
 | Tool | Use when | Key params |
 |---|---|---|
 | `get_metrics` | Snapshots, time-series, or aggregated fleet values. | `entity_ids`, `metrics`, `window_minutes`, `time_aggregate`, `entity_aggregate` |
-| `get_slo` | **SLO state, error budget, burn rate.** Fleet-wide without entity_ids using `cluster_names`/`namespace_names`. | `entity_ids`, `cluster_names`, `namespace_names`, `only_at_risk`, `only_violated` |
+| `get_slo` | **SLO state, error budget, burn rate.** Fleet-wide without entity_ids using `cluster_names`/`namespace_names`. | `entity_ids`, `cluster_names`, `namespace_names`, `only_at_risk`, `only_violated`, `include_operations` |
 | `get_config` | Raw config files. | `entity_id`, `name_contains` |
 | `get_topology` | Dependency/dependent/dataflow graph. **Do NOT loop — use `rank_entities`.** | `entity_id`, `mode`, `levels` |
 
@@ -101,7 +102,7 @@
 
 ```
 name_lookup(name_mention="checkout")
-  → Entity → pass id to get_issues(entity_ids=[id]), get_diagnoses(related_entity_ids=[id])
+  → Entity → pass id to get_issues(related_entity_ids=[id]), get_diagnoses(related_entity_ids=[id])
   → Entity → pass id to get_metrics, get_slo, get_topology, get_alerts, get_events, get_config
   → Entity → pass id to get_incident_impact(entity_id=id)
 ```
@@ -131,7 +132,7 @@ The Issue holds all of it together across all those changes. If two Diagnoses sh
 | "What incidents are active?" | `get_issues()` | Stable incident grouping across evolving diagnoses |
 | "What's the current diagnosis?" | `get_diagnoses()` | Current best explanation (may change) |
 | "Full detail for this incident" | `get_issue_details(issue_id=)` | Uncapped RC count + primary_diagnosis_detail |
-| "Full evidence for this diagnosis" | `get_diagnosis_details(diagnosis_id=)` | causal_chain + impact_service_graph |
+| "Full evidence for this diagnosis" | `get_diagnosis_details(diagnosis_id=)` | entity_causal_chain + impact_service_graph |
 | "What signals are firing?" | `get_symptoms()` | Current observable anomalies |
 
 ## Issue investigation workflow
@@ -140,7 +141,7 @@ The Issue holds all of it together across all those changes. If two Diagnoses sh
 get_issues(active_only=true)                    ← lightweight list: id, name, severity, entity, primary_diagnosis
   → pick the issue you need
 get_issue_details(issue_id=)                    ← full detail: diagnosis_count, diagnosis_counts breakdown,
-                                                   primary_diagnosis_detail (symptoms, causal_chain, impact_service_graph),
+                                                   primary_diagnosis_detail (symptoms, entity_causal_chain, impact_service_graph),
                                                    all associated diagnoses (lightweight)
 ```
 
@@ -151,8 +152,8 @@ get_issue_details(issue_id=)                    ← full detail: diagnosis_count
 ```
 get_diagnoses(active_only=true)           ← lightweight list: id, name, severity, description, remediation
   → pick the diagnosis you need
-get_diagnosis_details(diagnosis_id=)      ← full evidence: symptoms, causal_chain, impact_service_graph, exceptions, events
-  → causal_chain explains WHY Causely identified this as diagnosis
+get_diagnosis_details(diagnosis_id=)      ← full evidence: symptoms, entity_causal_chain, impact_service_graph, exceptions, events
+  → entity_causal_chain explains WHY Causely identified this as diagnosis
   → impact_service_graph shows blast radius
 ```
 
@@ -185,7 +186,7 @@ get_signal_potential_diagnoses(entity_id=, signal_name=)
 **"How did Causely detect this?"**
 ```
 get_diagnosis_details(diagnosis_id=)
-  → causal_chain: walk edges from leaf symptoms toward root_node_id
+  → entity_causal_chain: walk edges from leaf symptoms toward root_entity_id
   → edge probabilities show causal confidence (degrade downstream, confirming origin)
   → this is the OBSERVED causal graph, not the theoretical model
 ```
@@ -243,7 +244,7 @@ get_diagnosis_details(diagnosis_id=)
 ### 🔴 / 🟡 / 🟢 [Service] — [Status]
 
 **Diagnosis:** [name + entity + portal link from get_diagnoses]
-**Evidence:** [from `description` field; from get_diagnosis_details causal_chain for WHY; from get_logs if needed]
+**Evidence:** [from `description` field; from get_diagnosis_details entity_causal_chain for WHY; from get_logs if needed]
 **Blast radius:** [from get_diagnosis_details impact_service_graph, or impacted_services on summary]
 **Customer impact:** [from `impacted_customers` or get_incident_impact `impacted_context`]
 **Responsible:** [from get_incident_impact `responsible_context` or `causely.ai/team` label]
