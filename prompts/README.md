@@ -44,7 +44,7 @@ Frontmatter is a small subset of YAML so that any consumer can read it without a
 ## Writing a prompt
 
 - Name Causely, so the agent uses the Causely tools.
-- Write impersonal requests. Don't use first person (my, our, me), and don't name roles or people. Name the thing asked about, or take it as an argument.
+- Don't name roles or people. Name the thing asked about, or take it as an argument.
 - Make the title say what the prompt finds or does, in a few plain words, and keep titles unique.
 - Write complete, grammatical sentences.
 - Work without extra context. Don't ask for something the person may not have to hand, such as an alert to paste.
