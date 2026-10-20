@@ -1,12 +1,12 @@
 ---
 name: causely-mcp
 description: >
-  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, diagnoses, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 45 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the diagnosis", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
+  Use this skill whenever the user asks about service health, incidents, errors, latency, SLOs, diagnoses, symptoms, dependencies, blast radius, slow queries, alerts, metrics, topology, or anything related to observability and reliability. Also trigger for questions about Causely's methodology: "how does Causely work?", "how did Causely find this?", "what is Causely's causal reasoning?". This skill guides Claude to use 46 Causely MCP tools for structured investigations. Trigger for "what's wrong with X", "why is X slow", "what's the diagnosis", "is X healthy", "what services are affected", "what's burning our error budget", "show me the topology", "what alerts are firing", or any on-call / incident triage scenario. Always use when the topic is service reliability or system health.
 ---
 
 # Causely MCP Skill
 
-You have access to 45 structured Causely tools. Use as few calls as possible.
+You have access to 46 structured Causely tools. Use as few calls as possible.
 
 Read `references/complete-investigation.md` for the full tool inventory, evidence strategy, owner resolution, and fallback guidance.
 
@@ -25,16 +25,17 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 | User intent | Primary tool |
 |---|---|
 | "Is X healthy?" | `get_service_summary(service=)` |
+| "Is the checkout journey healthy?" | `get_business_transaction_summary(business_transaction=)` |
 | "Is the system healthy?" | `get_environment_health()` |
 | "Which SLOs are at risk?" | `get_slo(only_at_risk=true)` |
 | "Which SLOs are violated in cluster X?" | `get_slo(cluster_names=["X"], only_violated=true)` |
 | "What's the impact? Who is responsible?" | `get_incident_impact(diagnosis_id=)` |
 | "What issues are active?" / incident-level | `get_issues(active_only=true)` |
-| "What issues on entity X?" | `name_lookup` → `get_issues(entity_ids=[id])` |
+| "What issues on entity X?" | `name_lookup` → `get_issues(related_entity_ids=[id])` |
 | "Full detail for this issue" | `get_issue_details(issue_id=)` |
 | "What's breaking right now?" / all signals | `get_symptoms()` (no entity_ids) |
 | "What diagnoses are active?" | `get_diagnoses(active_only=true)` |
-| "Explain why Causely diagnosed this diagnosis" | `get_diagnosis_details(diagnosis_id=)` → read causal_chain |
+| "Explain why Causely diagnosed this diagnosis" | `get_diagnosis_details(diagnosis_id=)` → read entity_causal_chain |
 | "Full evidence for this diagnosis" | `get_diagnosis_details(diagnosis_id=)` |
 | "What's wrong in namespace X?" | `get_environment_health(namespaces=["X"])` |
 | "What's wrong in cluster X?" | `get_environment_health(clusters=["X"])` |
@@ -43,6 +44,7 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 | "Which services have the most dependencies?" | `rank_entities(entity_type="Service", mode=dependencies)` |
 | "Most-called endpoints?" | `rank_entities(entity_type="HTTPPath", mode=dependents)` |
 | "Which topics have the most consumers?" | `rank_entities(entity_type="Topic", mode=dependents)` |
+| "Which business transaction has the most routes?" | `rank_entities(entity_type="BusinessTransaction", mode=dependencies)` |
 | "Show me metrics for X" | `name_lookup` → `get_metrics(entity_ids=, metrics=)` |
 | "Average CPU across all pods?" | `get_metrics(entity_ids=, metrics=, entity_aggregate="mean")` |
 | "What are X's SLOs?" | `name_lookup` → `get_slo(entity_ids=)` |
@@ -83,7 +85,7 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 
 ### 🚨 Incident triage ("what's wrong with X?")
 1. `get_service_summary(service="<name>")` for health check + full context
-2. If degraded: `get_diagnosis_details(diagnosis_id=<from step 1>)` for full evidence + causal_chain
+2. If degraded: `get_diagnosis_details(diagnosis_id=<from step 1>)` for full evidence + entity_causal_chain
 3. `get_incident_impact(diagnosis_id=)` for responsibility + business context
 4. Closeout: ask for feedback → `submit_feedback(tools_used=[...])`
 
@@ -100,8 +102,8 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 3. Or `name_lookup` → `get_slo(entity_ids=[id])` — specific service
 
 ### 🔍 "How does Causely work?" / "Why did Causely diagnose this?"
-1. `get_diagnosis_details(diagnosis_id=)` — `causal_chain` explains WHY (observed graph)
-2. Walk edges from leaf symptoms toward root_node_id — edge probabilities show causal confidence
+1. `get_diagnosis_details(diagnosis_id=)` — `entity_causal_chain` explains WHY (observed graph)
+2. Walk edges from leaf symptoms toward root_entity_id — edge probabilities show causal confidence
 3. Also read `references/how-causely-works.md` for methodology
 
 ### 🧬 Causality model exploration ("what could go wrong?")
@@ -118,11 +120,10 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 1. `team_health(team=)` — degraded services first
 2. `get_incident_impact` per degraded service's diagnosis
 
-### 🔔 Alert-driven triage
-1. `get_alerts(alert_name_expr="<alert-name>")` — search by name
-2. `investigate_alert(alert=)` — one-step entity health
-3. For mapped alerts: `get_diagnoses(symptom_ids=[...])` → `get_diagnosis_details` for evidence
-4. Closeout: ask for feedback → `submit_feedback(tools_used=[...])`
+### 🔔 Alert-driven triage (2 calls, done)
+1. `get_alerts(alert_name_expr="<alert-name>")` — search by name (alerts now carry `issues[]`)
+2. `investigate_alert(alert=)` — returns full issue details (entity_causal_chain + impact_service_graph) + entity health. Do NOT call `get_issues`/`get_issue_details` again.
+3. Closeout: ask for feedback → `submit_feedback(tools_used=[...])`
 
 ---
 
@@ -130,8 +131,8 @@ Read `references/how-causely-works.md` when the user asks how Causely works, how
 
 - **Issues are stable, Diagnoses evolve.** An Issue is the persistent incident identity — it doesn't change. The Diagnosis (diagnosis) is the current best explanation and updates as signals change. If two Diagnoses share even one Signal, they're the same Issue. Use `get_issues` for the stable incident view; use `get_diagnoses` for the current diagnosis.
 - **`get_service_summary` for health checks, `get_incident_impact` for incident investigation.**
-- **`get_diagnoses` is lightweight.** Does NOT include causal_chain, symptoms, or impact_service_graph. Always follow up with `get_diagnosis_details(diagnosis_id=)` for full evidence.
-- **`get_diagnosis_details` causal_chain explains WHY** Causely identified the diagnosis. Do NOT use logs to explain the diagnosis — logs describe WHAT the defect is, not WHY it was identified.
+- **`get_diagnoses` is lightweight.** Does NOT include entity_causal_chain, symptoms, or impact_service_graph. Always follow up with `get_diagnosis_details(diagnosis_id=)` for full evidence.
+- **`get_diagnosis_details` entity_causal_chain explains WHY** Causely identified the diagnosis. Do NOT use logs to explain the diagnosis — logs describe WHAT the defect is, not WHY it was identified.
 - **Causality model tools for hypothesis exploration.** `get_potential_diagnoses`, `get_potential_observable_signals`, `get_signal_potential_diagnoses`, `get_diagnosis_observable_signals` explore the theoretical causality model — they return hypotheses and signal relationships, not just observed state. Use them for "what could go wrong?", "what could explain this?", and causality model exploration.
 - **`get_environment_health` does NOT report SLO state.** Use `get_slo` for all SLO questions.
 - **`get_slo` supports fleet-wide queries** with `cluster_names` and `namespace_names` — no entity IDs needed.
