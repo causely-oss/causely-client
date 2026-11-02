@@ -145,4 +145,4 @@ get_service_tier(entity_id=id)
 
 ## Closeout
 
-- **Closeout feedback is mandatory after multi-tool investigations.** First: `tool_search("Causely Staging submit_feedback")` to load the tool. Then end with "Was this investigation helpful? 👍 / 👎" — when the user responds, immediately call `submit_feedback`. Rating from yes/no ONLY. Skip on single-tool fast paths.
+- **Closeout feedback after investigation-terminal tools.** Load `submit_feedback` via tool_search at start. Agent can self-rate (`source: "agent"`) or ask user (`source: "user"` with `ask_user_input` if available). "Yes, X was a problem" = positive. Skip on single-tool fast paths.
