@@ -12,7 +12,7 @@
 
 ---
 
-## Complete tool inventory (46 tools)
+## Complete tool inventory (50 tools)
 
 ### Discovery & name resolution
 | Tool | Use when | Key params |
@@ -33,7 +33,7 @@
 ### Health & investigation
 | Tool | Use when | Key params |
 |---|---|---|
-| `get_service_summary` | **Primary single-service health by name.** Resolves names automatically. Use `cluster_name`/`namespace_name` to disambiguate. Pass `entity_id` to skip name resolution. | `service`, `cluster_name`, `namespace_name`, `entity_id`, `lookback_hours` |
+| `get_service_summary` | **Primary single-service health by name.** Resolves names automatically. Use `cluster_name`/`namespace_name`/`service_type` to disambiguate. Pass `entity_id` to skip name resolution. | `service`, `cluster_name`, `namespace_name`, `entity_id`, `service_type`, `lookback_hours` |
 | `get_business_transaction_summary` | **Primary tool for business transaction / user journey health by name.** Aggregates across all routes (Paths). | `business_transaction`, `lookback_hours` |
 | `get_environment_health` | Global or scoped health overview. **Does NOT report SLO state.** | `namespaces`, `clusters`, `services`, `products`, `active_only`, `lookback_hours` |
 | `get_incident_impact` | Incident investigation — responsibility + business context. **Not for health checks.** | `diagnosis_id`, `diagnosis_name`, `entity_id` |
@@ -71,15 +71,15 @@
 ### Post-deploy & reliability
 | Tool | Use when | Key params |
 |---|---|---|
-| `reliability_delta` | Single-service pre/post deploy comparison. | `service` |
-| `fleet_reliability_delta` | Batch regression check. | `team`, `namespace`, `services` |
+| `reliability_delta` | Single-service pre/post deploy comparison. Use `cluster_name`/`namespace_name` to disambiguate. | `service`, `cluster_name`, `namespace_name`, `entity_id`, `service_type`, `window_minutes` |
+| `fleet_reliability_delta` | Batch regression check. Scope by `team`, `namespace`, `cluster`, or explicit `services` list. | `team`, `namespace`, `cluster`, `services`, `service_type`, `window_minutes` |
 
 ### Reporting & actions
 | Tool | Use when | Key params |
 |---|---|---|
 | `generate_ticket` | Jira/GitHub/Linear ticket draft. | `task` |
 | `postmortem` | Postmortem for a resolved incident. | `diagnosis_id`, `diagnosis_name` + `entity_name`, `service` + `incident_start` |
-| `submit_feedback` | After multi-tool investigations or when user volunteers feedback. | `rating` ("positive"/"negative"), `message`, `tools_used` |
+| `submit_feedback` | After investigation-terminal tools or when user volunteers feedback. Agent can self-rate (`source: "agent"`) or pass user feedback (`source: "user"`). | `rating`, `source`, `message`, `tools_used` |
 
 ### Administration & configuration
 | Tool | Use when | Key params |
@@ -95,6 +95,14 @@
 | `get_issue_ignore_status` | Check if issue is snoozed. | `issue_id` |
 | `ignore_issue` | Snooze issue until a time — severity suppressed. | `issue_id`, `until` (RFC3339) |
 | `unignore_issue` | Restore normal severity immediately. | `issue_id` |
+
+### Environment snapshots
+| Tool | Use when | Key params |
+|---|---|---|
+| `create_snapshot` | Capture environment state (topology, diagnoses, metrics). Async — poll for COMPLETE. | `name`, `description`, `start_time`, `end_time`, `duration_minutes`, `tags` |
+| `get_snapshots` | List/search/poll snapshots. | `id`, `name_search`, `description_search`, `tags`, `start_time`, `end_time` |
+| `compare_snapshots` | Compare baseline vs after. Returns ACCEPTED/REJECTED. Only COMPLETE snapshots. | `snapshot_ids` (baseline first), `max_items` |
+| `delete_snapshot` | Permanently delete a snapshot. Requires Developer/Admin. | `id` |
 
 ---
 
@@ -253,18 +261,39 @@ get_diagnosis_details(diagnosis_id=)
 
 ---
 
-## Closeout feedback (multi-tool only)
+## Closeout feedback
 
-**Tool loading:** At the start of any multi-tool Causely investigation, call `tool_search("Causely Staging submit_feedback")` to ensure `submit_feedback` is loaded. Do this alongside your first investigation tool call — do not wait until the end.
+**Tool loading:** At the start of any multi-tool Causely investigation, call `tool_search("Causely submit_feedback")` to ensure `submit_feedback` is loaded. Do this alongside your first investigation tool call — do not wait until the end.
 
-After a multi-tool Causely investigation (≥2 Causely MCP tools in this turn):
+`submit_feedback` has two modes — **agent self-rating** and **user feedback**:
 
-1. **ALWAYS end with:** "Was this investigation helpful? 👍 / 👎"
-2. When the user responds (yes/thumbs up/positive → `"positive"`, no/thumbs down/negative → `"negative"`), **immediately call** `submit_feedback`. Do not ask what to write — use their words as the `message`.
-3. **Rating comes from the yes/no only.** Do NOT re-interpret the rating based on words in the message. "Yes, the token generation was really a problem" = `rating: "positive"`, `message: "the token generation was really a problem"`. The user is saying Causely correctly identified the problem — that's positive. Words like "problem", "issue", "error", "failure" in the message describe what Causely found, not dissatisfaction with the investigation.
-4. If the user adds commentary, pass it as `message` verbatim.
-5. `tools_used`: list every Causely tool called in the investigation turn (exclude `submit_feedback` itself).
-6. **Do not** call on single-tool fast paths (`get_service_summary`, `get_slo`, `name_lookup`, etc.).
-7. **Also call immediately** when the user volunteers feedback unprompted (e.g. "that was helpful", "this is wrong"), even on a single-tool turn — map to positive/negative and submit.
+### Mode 1: Agent self-rating (headless or interactive)
 
-The key rules: **do not treat feedback as a separate user request requiring confirmation. Do not infer sentiment from the message — only from the yes/no.**
+After calling an investigation-terminal tool (`get_issue_details`, `get_diagnosis_details`, `investigate_alert`, `get_incident_impact`), you can call `submit_feedback` yourself without asking the user:
+- `source: "agent"`
+- `rating: "positive"` if the Causely result was useful/correct, `"negative"` if wrong/missing/unhelpful
+- `message`: what the result showed (e.g. "identified exec format error as root cause of mysql crash loop")
+- `tools_used`: Causely tools called this turn (exclude `submit_feedback`)
+
+No user needs to be present. Use this in headless/CI runs and when the investigation is straightforward.
+
+### Mode 2: User feedback (interactive)
+
+After a multi-tool investigation with a user present:
+1. **Ask for feedback.** If your client has an interactive input tool (e.g. `ask_user_input`), use it for clickable buttons:
+   ```
+   ask_user_input(questions=[{"question": "Was this investigation helpful?", "options": ["Yes", "No"], "type": "single_select"}])
+   ```
+   If no interactive input tool is available, ask in plain text: "Was this investigation helpful? (yes/no)"
+2. When the user responds, **immediately call** `submit_feedback`:
+   - `source: "user"`
+   - `rating`: from the yes/no ONLY — do NOT re-interpret based on message words
+   - `message`: user's words verbatim
+3. **"Yes, X was a problem" = positive.** The user is saying Causely correctly identified the problem. Words like "problem", "issue", "error" describe what Causely found, not dissatisfaction.
+4. Also call when the user volunteers feedback unprompted ("that was helpful", "this is wrong") — map to positive/negative, `source: "user"`.
+
+### Common rules (both modes)
+
+- **Do not** call on single-tool fast paths (`get_service_summary`, `get_slo`, `name_lookup`, etc.).
+- `tools_used`: list every Causely tool called this turn (exclude `submit_feedback`).
+- Do not treat feedback as a separate user request requiring confirmation.

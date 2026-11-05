@@ -6,7 +6,7 @@ description: >
 
 # Causely Alert Triage Skill
 
-Read `references/complete-investigation.md` for the full 46-tool inventory and evidence strategy.
+Read `references/complete-investigation.md` for the full 50-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -16,12 +16,9 @@ Use `name_lookup(name_mention=)` to resolve names.
 
 | Tool | Use when |
 |---|---|
-| `get_alerts(alert_name_expr=)` | **Search by name — no entity IDs needed.** |
-| `investigate_alert(alert=)` | **One-step alert → entity health.** |
-| `get_diagnoses(symptom_ids=)` | Find cause behind a mapped alert — lightweight summary |
-| `get_diagnosis_details(diagnosis_id=)` | Full evidence: entity_causal_chain + impact_service_graph |
-| `get_incident_impact(diagnosis_id=)` | Responsibility + business context |
-| `get_service_summary(service=)` | Full health check when service name is known |
+| `get_alerts(alert_name_expr=)` | **Search by name — no entity IDs needed.** Alerts carry `issues[]` with linked issues. |
+| `investigate_alert(alert=)` | **One-step alert → full issue details + entity health.** Returns entity_causal_chain, impact_service_graph, diagnosis breakdown. Do NOT call get_issues/get_issue_details/get_diagnosis_details after. |
+| `get_service_summary(service=)` | Full health check when service name is known (alternative entry point) |
 
 ---
 
@@ -60,15 +57,13 @@ get_alerts(alert_name_expr="<alert-name>", active_only=true)
 
 ### 🔔 Alert triage: [alert name]
 
-**Alert:** [alert_name from get_alerts or user's description]
-**Service:** [entity name]
-**Status:** [firing / resolved] · **Severity:** [from alert]
+**Alert:** [alert_name] · **Status:** [firing / resolved] · **Severity:** [from alert]
 **Causely mapping:** ✅ `mapped_entity_symptom` "[symptom_name]" / ⚠️ `mapped_entity_only` / ❌ unmapped ([reason])
-**Diagnosis:** [from investigate_alert or get_diagnoses — name + entity + portal link]
-**Evidence:** [from description field; from get_diagnosis_details entity_causal_chain for WHY]
-**Blast radius:** [from get_diagnosis_details impact_service_graph or impacted_services]
-**Customer impact:** [from impacted_customers or get_incident_impact impacted_context]
-**Responsible:** [from get_incident_impact responsible_context or causely.ai/team label]
+**Issue:** [from investigate_alert — issue name, severity, diagnosis_count, since started_at]
+**Primary diagnosis:** [from primary_diagnosis_detail — name + entity]
+**Evidence:** [from primary_diagnosis_detail description; from entity_causal_chain for WHY Causely diagnosed this]
+**Blast radius:** [from impact_service_graph — affected services count + names]
+**Responsible:** [from responsible_context or causely.ai/team label]
 **Recommended actions:** [from remediation field]
 **Links:** [portal links]
 
@@ -76,4 +71,4 @@ get_alerts(alert_name_expr="<alert-name>", active_only=true)
 
 ## Closeout
 
-- **Closeout feedback is mandatory after multi-tool investigations.** First: `tool_search("Causely Staging submit_feedback")` to load the tool. Then end with "Was this investigation helpful? 👍 / 👎" — when the user responds, immediately call `submit_feedback`. Rating from yes/no ONLY. Skip on single-tool fast paths.
+- **Closeout feedback after investigation-terminal tools.** Load `submit_feedback` via tool_search at start. Agent can self-rate (`source: "agent"`) or ask user (`source: "user"` with `ask_user_input` if available). "Yes, X was a problem" = positive. Skip on single-tool fast paths.
