@@ -6,7 +6,6 @@ description: >
 
 # Causely Postmortem & Ticket Skill
 
-Read `references/complete-investigation.md` for the full 50-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type="Diagnosis"` to find diagnoses by name.
 
@@ -69,4 +68,4 @@ For each action item from the postmortem:
 
 ## Closeout
 
-- **Closeout feedback after investigation-terminal tools.** Load `submit_feedback` via tool_search at start. Agent can self-rate (`source: "agent"`) or ask user (`source: "user"` with `ask_user_input` if available). "Yes, X was a problem" = positive. Skip on single-tool fast paths.
+- Load `submit_feedback` via `tool_search` at the start of an investigation. The tool description has the rest.

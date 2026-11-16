@@ -6,7 +6,6 @@ description: >
 
 # Causely Correlated Incidents Skill
 
-Read `references/complete-investigation.md` for the full 50-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -16,12 +15,13 @@ Use `name_lookup(name_mention=)` to resolve names.
 
 | Tool | Use when |
 |---|---|
-| `get_diagnoses(active_only=true)` | Primary correlation tool — lightweight summary |
-| `get_diagnosis_details(diagnosis_id=)` | Full evidence: entity_causal_chain + impact_service_graph for blast radius |
+| `get_issues(active_only=true)` | **Primary entry point** — stable incident grouping |
+| `get_issue_details(issue_id=)` | Full evidence in one call: entity_causal_chain + impact_service_graph + all diagnoses |
 | `get_incident_impact(diagnosis_id=)` | Responsibility + business context |
 | `get_symptoms()` | Full signal scan — best first step |
-| `name_lookup` → `get_topology(entity_id=, mode=)` | Full dependency graph |
+| `name_lookup` → `get_topology(entity_id=, mode=, levels=)` | `dependencies` (what it calls), `dependents` (what calls it), or `dataflow` (end-to-end producers and consumers). `levels` defaults to 2, max 6 |
 | `rank_entities(entity_type=, mode=)` | Bulk ranking — do NOT loop get_topology |
+| `get_diagnoses(symptom_ids=)` | Drill-down: find diagnoses matching specific symptoms for correlation |
 
 ---
 
@@ -29,9 +29,9 @@ Use `name_lookup(name_mention=)` to resolve names.
 
 **Widespread outage:**
 ```
-get_diagnoses(active_only=true)                          ← lightweight list
-  → get_diagnosis_details(diagnosis_id=)                 ← impact_service_graph for blast radius
-  → get_incident_impact(diagnosis_id=)                    ← responsibility
+get_issues(active_only=true)                             ← stable incident list
+  → get_issue_details(issue_id=)                         ← entity_causal_chain + impact_service_graph + all diagnoses
+  → get_incident_impact(diagnosis_id=)                   ← responsibility
 ```
 
 **"Which services are most interconnected?":**
@@ -46,15 +46,23 @@ name_lookup → get_topology(entity_id=, mode=dependents)    ← 2 calls
 
 ---
 
+## Important behaviours
+
+- **Start unfiltered.** `get_diagnoses(related_entity_ids=)` can miss a diagnosis whose origin is a different service, such as an upstream crash that has not propagated yet. Call `get_issues` with no filters first, then correlate by service.
+- **Rank, don't loop.** Use `rank_entities` for "most interconnected"; never loop `get_topology`.
+- **Check `impact_service_graph` first.** It already holds the propagation path for a diagnosis, at no extra cost. Use `get_topology` only when you need the full call graph regardless of incidents.
+
+---
+
 ## Output format
 
 ### 🔴 Multi-service incident summary
 
 **Affected services:** [from impacted_services across diagnoses]
 **Correlation:** ✅ Correlated / ⚠️ Partial / ❓ Unconfirmed — [origin entity if known]
-**Diagnosis:** [name + entity + portal link from get_diagnoses]
-**Propagation path:** [from get_diagnosis_details impact_service_graph edges]
-**Evidence:** [from description field; from get_diagnosis_details entity_causal_chain for WHY]
+**Diagnosis:** [name + entity + portal link from get_issue_details primary_diagnosis_detail]
+**Propagation path:** [from impact_service_graph edges]
+**Evidence:** [from description field; from entity_causal_chain for WHY]
 **Blast radius:** [from impact_service_graph — total affected services count + names]
 **Customer impact:** [from impacted_customers or get_incident_impact impacted_context]
 **Responsible:** [from get_incident_impact responsible_context]
@@ -66,4 +74,4 @@ name_lookup → get_topology(entity_id=, mode=dependents)    ← 2 calls
 
 ## Closeout
 
-- **Closeout feedback after investigation-terminal tools.** Load `submit_feedback` via tool_search at start. Agent can self-rate (`source: "agent"`) or ask user (`source: "user"` with `ask_user_input` if available). "Yes, X was a problem" = positive. Skip on single-tool fast paths.
+- Load `submit_feedback` via `tool_search` at the start of an investigation. The tool description has the rest.

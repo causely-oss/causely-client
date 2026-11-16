@@ -6,7 +6,6 @@ description: >
 
 # Causely K8s Investigation Skill
 
-Read `references/complete-investigation.md` for the full 50-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to narrow: `"Entity"` for pods/containers, `"Namespace"` for namespaces, `"Cluster"` for clusters.
 
@@ -23,9 +22,9 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 | `get_incident_impact(diagnosis_id=)` | Responsibility + business context |
 | `name_lookup` → `get_entity_health(entity_id=)` | Pod/node/container health |
 | `name_lookup` → `get_events(entity_id=)` | OOMKill, CrashLoopBackOff, eviction events |
-| `name_lookup` → `get_config(entity_id=)` | Resource limits, HPA config |
+| `name_lookup` → `get_config(entity_id=, name_contains=)` | Resource limits, HPA config. `name_contains` filters config files by name |
+| `name_lookup` → `get_logs(entity_id=)` | Live logs for a running entity. Use `severity_filter` and `message_contains` to narrow |
 | `name_lookup` → `get_metrics(entity_ids=, metrics=)` | CPU, memory, network I/O |
-| `name_lookup` → `get_potential_diagnoses(entity_id=)` | Causality hypotheses |
 
 ---
 
@@ -35,9 +34,16 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 - **Pod/container detail** → `name_lookup` → `get_entity_health(entity_id=)`
 - **Why did my pod restart?** → `name_lookup` → `get_events(entity_id=, severity_filter=WARNING)`
 - **Namespace sweep** → `get_environment_health(namespaces=["<ns>"])`
-- **Full RC evidence** → `get_diagnosis_details(diagnosis_id=)` → read entity_causal_chain
-- **What could be wrong with this entity?** → `name_lookup` → `get_potential_diagnoses(entity_id=)` → compare active vs causality-only hypotheses
-- **What could explain this symptom?** → `name_lookup` → `get_signal_potential_diagnoses(entity_id=, signal_name=)`
+- **Full evidence** → `get_diagnosis_details(diagnosis_id=)` → read entity_causal_chain
+- **What could be wrong with this entity / what could explain this symptom?** → defer to **causely-causality-exploration**
+
+---
+
+## Important behaviours
+
+- **`get_events` does not cover deployments.** For deploys and image or config changes use `get_symptoms(symptom_name="VersionChanged", entity_types=["ComputeSpec"])`, or defer to **causely-change-impact**.
+- **`get_symptoms` `lookback_hours` is an interval-overlap filter.** For a stated window, set `active_only=false` and cross-check each symptom's `started_at`.
+- **`description` is pre-synthesised evidence.** Call `get_logs` only if the description is generic AND `has_stored_logs=true`.
 
 ---
 
@@ -60,4 +66,4 @@ Use `name_lookup(name_mention=)` to resolve names. Use `name_mention_type` to na
 
 ## Closeout
 
-- **Closeout feedback after investigation-terminal tools.** Load `submit_feedback` via tool_search at start. Agent can self-rate (`source: "agent"`) or ask user (`source: "user"` with `ask_user_input` if available). "Yes, X was a problem" = positive. Skip on single-tool fast paths.
+- Load `submit_feedback` via `tool_search` at the start of an investigation. The tool description has the rest.

@@ -6,7 +6,6 @@ description: >
 
 # Causely Alert Triage Skill
 
-Read `references/complete-investigation.md` for the full 50-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -19,6 +18,7 @@ Use `name_lookup(name_mention=)` to resolve names.
 | `get_alerts(alert_name_expr=)` | **Search by name — no entity IDs needed.** Alerts carry `issues[]` with linked issues. |
 | `investigate_alert(alert=)` | **One-step alert → full issue details + entity health.** Returns entity_causal_chain, impact_service_graph, diagnosis breakdown. Do NOT call get_issues/get_issue_details/get_diagnosis_details after. |
 | `get_service_summary(service=)` | Full health check when service name is known (alternative entry point) |
+| `get_integration_status(cluster_names=)` | Alert rule counts per Prometheus scraper (`alert_rules_configured`, `alerts_active`) |
 
 ---
 
@@ -30,12 +30,19 @@ get_alerts(alert_name_expr="<alert-name>", active_only=true)
   → alert now carries issues[] with linked issues
   → investigate_alert(alert=<alert_object>)
        → returns full issue details (entity_causal_chain + impact_service_graph) + entity health
-       → DO NOT call get_issues/get_issue_details again — already included
-  → if issues is empty: no diagnosis explains this alert yet
+       → DO NOT call get_issues/get_issue_details again for issues already returned
+  → issues empty but alert.issues not: the linked issues are inactive (incident cleared);
+    call get_issue_details(issue_id=) on each alert.issues[].id for the causal explanation
+  → issues empty and alert.issues empty: no diagnosis explains this alert yet
+  → issue_errors: linked issues whose detail failed to load; retry with get_issue_details
+  → health_error set: the health snapshot failed to load; the issues are still valid
+  → evidence logs are omitted; if has_stored_logs, fetch with get_logs(diagnosis_id=)
   → unmapped alerts: surface unmapped state, do not infer entities
 ```
 
 **Alert received — service name known:** `get_service_summary(service=)`
+
+**"No alerts are firing. Is that real?"** `get_alerts` only returns alerts that have fired. Check `get_integration_status` to tell a cluster with quiet rules (`alert_rules_configured` > 0, `alerts_active` 0) from one with no rules (0). A missing count means the rules sync has not completed, not zero.
 
 **Alert noise audit:** `get_alerts(mapping_state_filters=["unmapped_insufficient_labels","unmapped_entity_not_found","unmapped"])`
 
@@ -71,4 +78,4 @@ get_alerts(alert_name_expr="<alert-name>", active_only=true)
 
 ## Closeout
 
-- **Closeout feedback after investigation-terminal tools.** Load `submit_feedback` via tool_search at start. Agent can self-rate (`source: "agent"`) or ask user (`source: "user"` with `ask_user_input` if available). "Yes, X was a problem" = positive. Skip on single-tool fast paths.
+- Load `submit_feedback` via `tool_search` at the start of an investigation. The tool description has the rest.

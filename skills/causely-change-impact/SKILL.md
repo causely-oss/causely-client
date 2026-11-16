@@ -6,7 +6,6 @@ description: >
 
 # Causely Change Impact & Reliability Delta Skill
 
-Read `references/complete-investigation.md` for the full 50-tool inventory and evidence strategy.
 
 Use `name_lookup(name_mention=)` to resolve names.
 
@@ -20,7 +19,7 @@ Use `name_lookup(name_mention=)` to resolve names.
 | `reliability_delta(service=, cluster_name=, namespace_name=)` | Single-service before/after metric comparison (auto-detects last deploy). Use `cluster_name`/`namespace_name` to disambiguate, or `entity_id` to skip name resolution. |
 | `fleet_reliability_delta(team= or namespace= or cluster= or services=[])` | Batch regression check. Scope by team, namespace, cluster, or explicit services list. Use `service_type` to narrow. |
 | `get_service_summary(service=)` | Post-deploy health check |
-| `get_diagnosis_details(diagnosis_id=)` | Full evidence when regression detected |
+| `get_issue_details(issue_id=)` | Full evidence when regression detected (entity_causal_chain + impact_service_graph in one call) |
 | `get_incident_impact(diagnosis_id=)` | Responsibility + business context |
 | `get_symptoms(symptom_name="VersionChanged", entity_types=["ComputeSpec"])` | Detect deployment events |
 
@@ -52,7 +51,7 @@ Use `name_lookup(name_mention=)` to resolve names.
 
 **Single-service quick check:**
 ```
-reliability_delta(service=, cluster_name=, namespace_name=) → if REGRESSION: get_diagnosis_details → get_incident_impact
+reliability_delta(service=, cluster_name=, namespace_name=) → if REGRESSION: get_issue_details(issue_id=) → get_incident_impact
 ```
 
 **Fleet-wide quick check:**
@@ -116,10 +115,16 @@ Snapshot comparison is "Reliability Delta" in the Causely UI. Comparisons are **
 ## Important behaviours
 
 - **`get_events` does NOT cover deployments.** Use `get_symptoms(symptom_name="VersionChanged", entity_types=["ComputeSpec"])` for deploy detection.
+- **`get_symptoms` `lookback_hours` is an interval-overlap filter.** For a stated window ("last hour"), set `active_only=false` and `lookback_hours`, then cross-check each symptom's `started_at` against the window yourself.
+- **`reliability_delta` verdicts:** REGRESSION only when a new Critical or High diagnosis started after the release. Metric shifts alone give at most WARNING and never REGRESSION. A verdict marked "symptoms & diagnoses only" had no metrics to compare (metrics are kept for 24h by default).
+- **`fleet_reliability_delta` checks at most 20 services per call**, most severe first, with a Truncated note for the rest. Narrow the scope if it truncates. When following up on one service, pass the fleet call's cluster and namespace as `cluster_name` / `namespace_name`.
+- **Deploy before/after values** (image, resources) come from `get_service_summary` or `get_entity_health` (`service_details.configuration_changes`), not from `get_events`.
+- **`get_symptoms` with `active_only=true` ignores `lookback_hours` entirely.** For a stated window set `active_only=false`.
 - **Always poll for COMPLETE before comparing.** Comparing PENDING snapshots fails.
 - **Baseline first.** `compare_snapshots(snapshot_ids=[baseline_id, after_id])`.
 - **Tags for organization.** Use `release`, `phase`, `environment` for searchability.
 - **Requires Developer/Admin** for `create_snapshot` and `delete_snapshot`.
+- **Confirm before `delete_snapshot`.** Deletion is permanent and the captured data cannot be recovered. Name the snapshot (name, ID, time window) and wait for a yes. Do not delete snapshots as cleanup after your own test runs unless the user asked.
 - **Processing time varies.** Small: minutes. Large: up to 45 minutes. Set expectations.
 
 ---
@@ -135,7 +140,7 @@ Snapshot comparison is "Reliability Delta" in the Causely UI. Comparisons are **
 |---|---|---|---|---|
 | [from reliability_delta response] |
 **New diagnoses since deploy:** [name + started_at, or "None"]
-**Evidence:** [from get_diagnosis_details entity_causal_chain if called]
+**Evidence:** [from get_issue_details entity_causal_chain if called]
 **Blast radius:** [from impact_service_graph]
 **Recommended actions:** [from remediation; rollback if 🔴]
 **Links:** [portal links]
@@ -155,4 +160,4 @@ Snapshot comparison is "Reliability Delta" in the Causely UI. Comparisons are **
 
 ## Closeout
 
-- **Closeout feedback after investigation-terminal tools.** Load `submit_feedback` via tool_search at start. Agent can self-rate (`source: "agent"`) or ask user (`source: "user"` with `ask_user_input` if available). "Yes, X was a problem" = positive. Skip on single-tool fast paths.
+- Load `submit_feedback` via `tool_search` at the start of an investigation. The tool description has the rest.
